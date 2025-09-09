@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>uOttawa Boxing Club</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      :root { --brand: #CC0000; }
+      html, body { height: 100%; margin: 0; }
+      body {
+        font-family: Arial, sans-serif;
+        min-height: 100vh;
+        background-image: url("https://drive.google.com/uc?id=1hBYRBmR5nF1N_7Fo6KGTAmLSCSKcMRDs");
+        background-repeat: no-repeat;
+        background-position: center center;
+        background-attachment: fixed;
+        background-size: cover;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        padding: 40px 16px;
+      }
+      .container {
+        background: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(2px);
+        padding: 24px;
+        border-radius: 10px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+        width: 100%;
+        max-width: 460px;
+        text-align: center;
+        position: relative;
+      }
+      .logo { max-width: 140px; margin-bottom: 12px; display: block; margin-inline: auto; }
+      h2 { color: var(--brand); margin: 8px 0 16px; font-size: 24px; }
+
+      .tabs { display: flex; gap: 6px; margin-bottom: 16px; }
+      .mode-btn {
+        background: #f8f9fa; color: #495057; border: 2px solid #dee2e6;
+        padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; flex: 1;
+        transition: all 0.25s;
+      }
+      .mode-btn.active { background: var(--brand); color: white; border-color: var(--brand); }
+      .mode-btn:hover:not(.active) { background: #eef1f3; border-color: #cfd6dc; }
+
+      /* Language toggle */
+      .lang-toggle {
+        position: absolute; top: 12px; right: 12px;
+        display: inline-flex; gap: 6px; align-items: center;
+        font-size: 12px; color: #444;
+      }
+      .lang-toggle button {
+        background: #fff; border: 1px solid #ccc; border-radius: 999px; padding: 6px 10px;
+        cursor: pointer; font-weight: 600;
+      }
+      .lang-toggle button.active { background: var(--brand); color: #fff; border-color: var(--brand); }
+
+      .success-message, .error-message {
+        padding: 12px; border-radius: 6px; margin: 10px 0 4px; display: none; text-align: left; font-size: 14px;
+      }
+      .success-message { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+      .error-message   { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+
+      input, select, button {
+        width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #cccccc; border-radius: 6px; font-size: 14px; box-sizing: border-box;
+      }
+      input:focus, select:focus { border-color: var(--brand); outline: none; box-shadow: 0 0 0 3px rgba(204,0,0,0.15); }
+      button { background: var(--brand); color: #fff; border: none; cursor: pointer; font-weight: bold; transition: background-color 0.25s, transform 0.05s; }
+      button:hover:not(:disabled) { background: #a60000; }
+      button:active:not(:disabled) { transform: translateY(1px); }
+      button:disabled { background: #999; cursor: not-allowed; }
+
+      #aboutContent, #instructionsContent { text-align: left; font-size: 15px; line-height: 1.55; color: #2a2a2a; }
+      ul { padding-left: 18px; }
+      small.helper { display:block; text-align:left; color:#5a5a5a; margin-top:-4px; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- Language toggle -->
+      <div class="lang-toggle" aria-label="Language">
+        <span id="langLabel">Language:</span>
+        <button type="button" id="btnEN" class="active">EN</button>
+        <button type="button" id="btnFR">FR</button>
+      </div>
+
+      <img
+        class="logo"
+        src="https://lh3.googleusercontent.com/d/1vpMomvoOWO3GHcu0Blyc0t2AcVMWnr2w"
+        alt="uOttawa Boxing Club Logo"
+        onerror="this.src='https://via.placeholder.com/100x60/CC0000/FFFFFF?text=uOttawa+Boxing'; this.onerror=null;"
+      />
+      <h2 id="pageTitle">Register Now</h2>
+
+      <div class="tabs">
+        <button type="button" id="registerModeBtn" class="mode-btn active">Register</button>
+        <button type="button" id="cancelModeBtn" class="mode-btn">Cancel</button>
+        <button type="button" id="aboutModeBtn" class="mode-btn">About Us</button>
+        <button type="button" id="instructionsModeBtn" class="mode-btn">Instructions</button>
+      </div>
+
+      <div id="successMessage" class="success-message"></div>
+      <div id="errorMessage" class="error-message"></div>
+
+      <!-- Registration / Cancel Form -->
+      <form id="regForm">
+        <input name="name" placeholder="Full name" maxlength="100" />
+        <input name="email" type="email" placeholder="Email" maxlength="100" />
+        <input name="phone" type="tel" placeholder="Phone number" maxlength="20" />
+
+        <!-- Registration class selector -->
+        <div id="classChoiceRow">
+          <select name="classChoice">
+            <option value="">Select a class day</option>
+            <option value="Tuesday 4:30–5:30 PM">Tuesday: 4:30–5:30 PM</option>
+            <option value="Friday 2:30–3:30 PM">Friday: 2:30–3:30 PM</option>
+          </select>
+        </div>
+
+        <!-- Cancel selector (All / specific class) -->
+        <div id="cancelAllRow" style="display:none;">
+          <select id="cancelClassSelect">
+            <option value="__ALL__">All my registrations</option>
+            <option value="Tuesday 4:30–5:30 PM">Only Tuesday: 4:30–5:30 PM</option>
+            <option value="Friday 2:30–3:30 PM">Only Friday: 2:30–3:30 PM</option>
+          </select>
+          <small id="cancelHelper" class="helper" style="display:block;">
+            Choose the class to cancel, or pick <em>All my registrations</em>.
+          </small>
+        </div>
+
+        <button type="submit" id="submitBtn">Register</button>
+      </form>
+
+      <!-- About Us -->
+      <div id="aboutContent" style="display:none;">
+        <p><strong>Welcome to the uOttawa Boxing Club!</strong> Our mission is to promote fitness, discipline, and community through boxing. We offer beginner-friendly fundamentals, conditioning, pad work, and safe sparring for those who are ready.</p>
+        <p>We focus on proper technique, injury prevention, and an inclusive, supportive vibe. Whether you’re just starting or building on experience, you’ll find a place here.</p>
+        <p><strong>Questions?</strong> Catch us after class or reach out via the registration email. See you in the gym! 🥊</p>
+      </div>
+
+      <!-- Instructions -->
+      <div id="instructionsContent" style="display:none;">
+        <h3 style="margin:6px 0 8px;color:#333;">Before You Register</h3>
+        <ul>
+          <li><strong>Arrive early:</strong> please be at the gym <u>10 minutes before</u> start time.</li>
+          <li><strong>Cancellation policy:</strong> <u>no cancellations within 12 hours</u> of class time.</li>
+          <li><strong>Late arrivals:</strong> your spot may be given to the waitlist if you are late.</li>
+        </ul>
+        <h3 style="margin:12px 0 8px;color:#333;">Weekly Schedule</h3>
+        <ul>
+          <li><strong>Tuesdays:</strong> 4:30–5:30 PM</li>
+          <li><strong>Fridays:</strong> 2:30–3:30 PM</li>
+        </ul>
+        <p style="margin-top:10px;font-size:14px;color:#444;">
+          Signups reset every <strong>Saturday at 11:00 AM</strong>.
+        </p>
+      </div>
+    </div>
+
+    <script>
+      /***** Elements *****/
+      const form = document.getElementById('regForm');
+      const submitBtn = document.getElementById('submitBtn');
+      const registerModeBtn = document.getElementById('registerModeBtn');
+      const cancelModeBtn = document.getElementById('cancelModeBtn');
+      const aboutModeBtn = document.getElementById('aboutModeBtn');
+      const instructionsModeBtn = document.getElementById('instructionsModeBtn');
+      const successMessage = document.getElementById('successMessage');
+      const errorMessage = document.getElementById('errorMessage');
+      const classChoiceRow = document.getElementById('classChoiceRow');
+      const cancelAllRow = document.getElementById('cancelAllRow');
+      const cancelClassSelect = document.getElementById('cancelClassSelect');
+      const cancelHelper = document.getElementById('cancelHelper');
+      const pageTitle = document.getElementById('pageTitle');
+      const aboutContent = document.getElementById('aboutContent');
+      const instructionsContent = document.getElementById('instructionsContent');
+
+      // Language toggle
+      const btnEN = document.getElementById('btnEN');
+      const btnFR = document.getElementById('btnFR');
+      const langLabel = document.getElementById('langLabel');
+
+      /***** i18n strings (EN/FR) *****/
+      const i18n = {
+        en: {
+          language: 'Language:',
+          pageTitle: 'Register Now',
+          tabs: { register: 'Register', cancel: 'Cancel', about: 'About Us', instructions: 'Instructions' },
+          inputs: { name: 'Full name', email: 'Email', phone: 'Phone number' },
+          registerSelectPlaceholder: 'Select a class day',
+          tue: 'Tuesday: 4:30–5:30 PM',
+          fri: 'Friday: 2:30–3:30 PM',
+          cancelSelectAll: 'All my registrations',
+          cancelSelectTue: 'Only Tuesday: 4:30–5:30 PM',
+          cancelSelectFri: 'Only Friday: 2:30–3:30 PM',
+          cancelHelper: 'Choose the class to cancel, or pick All my registrations.',
+          submitRegister: 'Register',
+          submitCancel: 'Cancel Registration',
+          msgFillAll: 'Please fill in all fields.',
+          msgEmailOnly: 'Please enter your email to cancel.',
+          aboutTitle: 'About Us',
+          instructionsTitle: 'Instructions',
+          beforeYouRegister: 'Before You Register',
+          arriveEarly: 'Arrive early: please be at the gym 10 minutes before start time.',
+          cancellation: 'Cancellation policy: no cancellations within 12 hours of class time.',
+          late: 'Late arrivals: your spot may be given to the waitlist if you are late.',
+          weeklySchedule: 'Weekly Schedule',
+          tueItem: 'Tuesdays: 4:30–5:30 PM',
+          friItem: 'Fridays: 2:30–3:30 PM',
+          reset: 'Signups reset every Saturday at 11:00 AM.',
+          successRegistered: 'Registered successfully! Check your email for confirmation.',
+          successCancelled: (deleted, promoted) =>
+            `Cancelled ${deleted} entr${deleted === 1 ? 'y' : 'ies'}. Promoted ${promoted} from the waitlist.`
+        },
+        fr: {
+          language: 'Langue :',
+          pageTitle: 'Inscrivez-vous maintenant',
+          tabs: { register: 'Inscription', cancel: 'Annuler', about: 'À propos', instructions: 'Consignes' },
+          inputs: { name: 'Nom complet', email: 'Courriel', phone: 'Numéro de téléphone' },
+          registerSelectPlaceholder: 'Choisissez une journée de cours',
+          tue: 'Mardi : 16 h 30 – 17 h 30',
+          fri: 'Vendredi : 14 h 30 – 15 h 30',
+          cancelSelectAll: 'Toutes mes inscriptions',
+          cancelSelectTue: 'Uniquement le mardi : 16 h 30 – 17 h 30',
+          cancelSelectFri: 'Uniquement le vendredi : 14 h 30 – 15 h 30',
+          cancelHelper: 'Choisissez le cours à annuler, ou sélectionnez « Toutes mes inscriptions ».',
+          submitRegister: 'S’inscrire',
+          submitCancel: 'Annuler l’inscription',
+          msgFillAll: 'Veuillez remplir tous les champs.',
+          msgEmailOnly: 'Veuillez entrer votre courriel pour annuler.',
+          aboutTitle: 'À propos',
+          instructionsTitle: 'Consignes',
+          beforeYouRegister: 'Avant de vous inscrire',
+          arriveEarly: 'Arrivez tôt : soyez au gym 10 minutes avant le début du cours.',
+          cancellation: 'Politique d’annulation : aucune annulation dans les 12 heures précédant le cours.',
+          late: 'Retards : votre place peut être donnée à la liste d’attente si vous arrivez en retard.',
+          weeklySchedule: 'Horaire hebdomadaire',
+          tueItem: 'Mardis : 16 h 30 – 17 h 30',
+          friItem: 'Vendredis : 14 h 30 – 15 h 30',
+          reset: 'Les inscriptions sont réinitialisées chaque samedi à 11 h.',
+          successRegistered: 'Inscription réussie! Vérifiez votre courriel pour la confirmation.',
+          successCancelled: (deleted, promoted) =>
+            `Annulé : ${deleted} entr${deleted === 1 ? 'ée' : 'ées'}. Promu : ${promoted} depuis la liste d’attente.`
+        }
+      };
+
+      let lang = localStorage.getItem('lang') || 'en';
+      let currentMode = 'register';
+
+      function hideMessages() {
+        successMessage.style.display = 'none';
+        errorMessage.style.display = 'none';
+        successMessage.textContent = '';
+        errorMessage.textContent = '';
+      }
+
+      function setLang(next) {
+        lang = next;
+        localStorage.setItem('lang', lang);
+        // toggle buttons
+        btnEN.classList.toggle('active', lang === 'en');
+        btnFR.classList.toggle('active', lang === 'fr');
+
+        const t = i18n[lang];
+
+        // Label
+        langLabel.textContent = t.language;
+
+        // Tabs + title
+        registerModeBtn.textContent = t.tabs.register;
+        cancelModeBtn.textContent = t.tabs.cancel;
+        aboutModeBtn.textContent = t.tabs.about;
+        instructionsModeBtn.textContent = t.tabs.instructions;
+
+        // Inputs placeholders
+        form.name.placeholder = t.inputs.name;
+        form.email.placeholder = t.inputs.email;
+        form.phone.placeholder = t.inputs.phone;
+
+        // Registration class dropdown
+        const regSel = form.classChoice;
+        regSel.options[0].text = t.registerSelectPlaceholder;
+        regSel.options[1].text = t.tue;
+        regSel.options[2].text = t.fri;
+
+        // Cancel dropdown
+        cancelClassSelect.options[0].text = t.cancelSelectAll;
+        cancelClassSelect.options[1].text = t.cancelSelectTue;
+        cancelClassSelect.options[2].text = t.cancelSelectFri;
+        cancelHelper.textContent = t.cancelHelper;
+
+        // Static content sections
+        document.querySelector('#instructionsContent h3').textContent = t.beforeYouRegister;
+        const instrLis = document.querySelectorAll('#instructionsContent ul:first-of-type li');
+        instrLis[0].innerHTML = `<strong>${t.arriveEarly.split(':')[0]}:</strong> ${t.arriveEarly.split(': ').slice(1).join(': ')}`;
+        instrLis[1].innerHTML = `<strong>${t.cancellation.split(':')[0]}:</strong> ${t.cancellation.split(': ').slice(1).join(': ')}`;
+        instrLis[2].innerHTML = `<strong>${t.late.split(':')[0]}:</strong> ${t.late.split(': ').slice(1).join(': ')}`;
+
+        document.querySelectorAll('#instructionsContent h3')[1].textContent = t.weeklySchedule;
+        const schedLis = document.querySelectorAll('#instructionsContent ul:nth-of-type(2) li');
+        schedLis[0].textContent = t.tueItem;
+        schedLis[1].textContent = t.friItem;
+        document.querySelector('#instructionsContent p').textContent = t.reset;
+
+        // Title depends on mode
+        if (currentMode === 'register') {
+          pageTitle.textContent = t.pageTitle;
+          submitBtn.textContent = t.submitRegister;
+        } else if (currentMode === 'cancel') {
+          pageTitle.textContent = t.tabs.cancel;
+          submitBtn.textContent = t.submitCancel;
+        } else if (currentMode === 'about') {
+          pageTitle.textContent = t.aboutTitle;
+        } else if (currentMode === 'instructions') {
+          pageTitle.textContent = t.instructionsTitle;
+        }
+      }
+
+      function switchMode(mode) {
+        currentMode = mode;
+        [registerModeBtn, cancelModeBtn, aboutModeBtn, instructionsModeBtn].forEach(b => b.classList.remove('active'));
+        form.style.display = 'none';
+        aboutContent.style.display = 'none';
+        instructionsContent.style.display = 'none';
+        hideMessages();
+
+        const t = i18n[lang];
+
+        if (mode === 'register') {
+          registerModeBtn.classList.add('active');
+          form.style.display = '';
+          classChoiceRow.style.display = 'block';
+          cancelAllRow.style.display = 'none';
+          submitBtn.textContent = t.submitRegister;
+          pageTitle.textContent = t.pageTitle;
+        }
+        if (mode === 'cancel') {
+          cancelModeBtn.classList.add('active');
+          form.style.display = '';
+          classChoiceRow.style.display = 'none';
+          cancelAllRow.style.display = 'block';
+          submitBtn.textContent = t.submitCancel;
+          pageTitle.textContent = t.tabs.cancel;
+        }
+        if (mode === 'about') {
+          aboutModeBtn.classList.add('active');
+          aboutContent.style.display = '';
+          pageTitle.textContent = t.aboutTitle;
+        }
+        if (mode === 'instructions') {
+          instructionsModeBtn.classList.add('active');
+          instructionsContent.style.display = '';
+          pageTitle.textContent = t.instructionsTitle;
+        }
+      }
+
+      // Event listeners
+      registerModeBtn.addEventListener('click', () => switchMode('register'));
+      cancelModeBtn.addEventListener('click', () => switchMode('cancel'));
+      aboutModeBtn.addEventListener('click', () => switchMode('about'));
+      instructionsModeBtn.addEventListener('click', () => switchMode('instructions'));
+
+      btnEN.addEventListener('click', () => setLang('en'));
+      btnFR.addEventListener('click', () => setLang('fr'));
+
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        hideMessages();
+
+        const t = i18n[lang];
+
+        const base = {
+          name: (form.name.value || '').trim(),
+          email: (form.email.value || '').trim(),
+          phone: (form.phone.value || '').trim()
+        };
+
+        if (currentMode === 'register') {
+          const classChoice = form.classChoice ? (form.classChoice.value || '').trim() : '';
+          if (!base.name || !base.email || !base.phone || !classChoice) {
+            errorMessage.textContent = t.msgFillAll;
+            errorMessage.style.display = 'block';
+            return;
+          }
+          base.classChoice = classChoice;
+          submitBtn.textContent = t.submitRegister.replace(/e?$/, 'ing…'); // simple “Registering…” feel
+        } else if (currentMode === 'cancel') {
+          if (!base.email) {
+            errorMessage.textContent = t.msgEmailOnly;
+            errorMessage.style.display = 'block';
+            return;
+          }
+          const selection = cancelClassSelect.value;
+          base.classChoice = (selection === '__ALL__') ? '' : selection;
+          submitBtn.textContent = t.submitCancel + '…';
+        }
+
+        submitBtn.disabled = true;
+        const fn = currentMode === 'register' ? 'registerNew' : 'cancelRegistration';
+
+        google.script.run
+          .withSuccessHandler((res) => {
+            if (res && res.success) {
+              let msg;
+              if (currentMode === 'register') {
+                msg = i18n[lang].successRegistered;
+              } else {
+                const del = Number(res.deleted || 0);
+                const prom = Number(res.promoted || 0);
+                msg = i18n[lang].successCancelled(del, prom);
+              }
+              successMessage.textContent = msg;
+              successMessage.style.display = 'block';
+              form.reset();
+              cancelClassSelect.value = '__ALL__';
+            } else {
+              errorMessage.textContent = (res && res.error) || 'Operation failed. Please try again.';
+              errorMessage.style.display = 'block';
+            }
+            submitBtn.disabled = false;
+            submitBtn.textContent = currentMode === 'register' ? t.submitRegister : t.submitCancel;
+            window.scrollTo(0, 0);
+          })
+          .withFailureHandler((err) => {
+            errorMessage.textContent = (err && err.message) || 'Request failed.';
+            errorMessage.style.display = 'block';
+            submitBtn.disabled = false;
+            submitBtn.textContent = currentMode === 'register' ? t.submitRegister : t.submitCancel;
+            window.scrollTo(0, 0);
+          })[fn](base);
+      });
+
+      // Initialize
+      setLang(lang);
+      switchMode('register');
+      cancelClassSelect.value = '__ALL__';
+    </script>
+  </body>
+</html>
