@@ -420,3 +420,335 @@ function testEmailOnce() {
   MailApp.sendEmail(me, 'uOttawa Boxing Club — Test | Essai', 'If you see this, email sending is authorized.\n\nSi vous voyez ceci, l’envoi de courriels est autorisé.');
   return 'Sent test to: ' + me;
 }
+/***** MANUAL RESET FUNCTION *****/
+function clearAllRegistrations() {
+  var regSheet = _getRegistrationSheet();
+  var waitSheet = _getWaitlistSheet();
+  
+  // Clear all data except headers
+  if (regSheet.getLastRow() > 1) {
+    regSheet.deleteRows(2, regSheet.getLastRow() - 1);
+  }
+  
+  if (waitSheet.getLastRow() > 1) {
+    waitSheet.deleteRows(2, waitSheet.getLastRow() - 1);
+  }
+  
+  // Clear dashboard sheet if it exists
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var dashSheet = ss.getSheetByName(DASHBOARD_TAB_NAME);
+  if (dashSheet) {
+    dashSheet.clear();
+    Logger.log('Dashboard cleared');
+  }
+  
+  // Rebuild dashboard if it exists
+  _safeRebuildDashboard();
+  
+  Logger.log('All registrations, waitlist entries, and dashboard cleared at: ' + new Date());
+  return 'Reset complete. All registrations and dashboard cleared.';
+}
+/***** CLEAN 4-SECTION DASHBOARD FUNCTIONS - FIXED SPACING *****/
+
+function setupDashboardHeaders() {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var dashSheet = ss.getSheetByName(DASHBOARD_TAB_NAME);
+  
+  // Create dashboard sheet if it doesn't exist
+  if (!dashSheet) {
+    dashSheet = ss.insertSheet(DASHBOARD_TAB_NAME);
+  }
+  
+  // Clear everything
+  dashSheet.clear();
+  
+  // Header and summary
+  dashSheet.appendRow(['uOttawa Boxing Club - Registration Dashboard']);
+  dashSheet.appendRow(['Last Updated: ' + new Date().toString()]);
+  dashSheet.appendRow(['']);
+  dashSheet.appendRow(['SUMMARY']);
+  dashSheet.appendRow(['Class', 'Registered', 'Available', 'Waitlisted']);
+  dashSheet.appendRow(['Tuesday 4:30–5:30 PM', 0, CAPACITY_PER_CLASS, 0]);
+  dashSheet.appendRow(['Friday 2:30–3:30 PM', 0, CAPACITY_PER_CLASS, 0]);
+  dashSheet.appendRow(['TOTALS:', 0, '', 0]);
+  
+  // Format headers
+  dashSheet.getRange(1, 1).setFontWeight('bold').setFontSize(16);
+  dashSheet.getRange(4, 1).setFontWeight('bold').setFontSize(14).setBackground('#e6f3ff');
+  dashSheet.getRange(5, 1, 1, 4).setFontWeight('bold').setBackground('#f0f0f0');
+  dashSheet.getRange(8, 1).setFontWeight('bold');
+  
+  // Auto-resize columns
+  dashSheet.autoResizeColumns(1, 5);
+  
+  Logger.log('Clean dashboard headers set up at: ' + new Date());
+  return 'Clean dashboard created successfully';
+}
+
+function _rebuildDashboard() {
+  try {
+    var ss = SpreadsheetApp.openById(SHEET_ID);
+    var dashSheet = ss.getSheetByName(DASHBOARD_TAB_NAME);
+    
+    // If dashboard doesn't exist or is too small, recreate it
+    if (!dashSheet || dashSheet.getLastRow() < 8) {
+      setupDashboardHeaders();
+      dashSheet = ss.getSheetByName(DASHBOARD_TAB_NAME);
+    }
+    
+    // Update timestamp
+    dashSheet.getRange(2, 1).setValue('Last Updated: ' + new Date().toString());
+    
+    // Clear everything below the summary (row 9 onwards)
+    var lastRow = dashSheet.getLastRow();
+    if (lastRow > 8) {
+      dashSheet.deleteRows(9, lastRow - 8);
+    }
+    
+    // Get data using existing helper functions
+    var regSheet = _getRegistrationSheet();
+    var waitSheet = _getWaitlistSheet();
+    var regData = regSheet.getDataRange().getValues();
+    var waitData = waitSheet.getDataRange().getValues();
+    
+    // Process registration data
+    var tuesdayRegs = [];
+    var fridayRegs = [];
+    
+    if (regData.length > 1) {
+      var rmap = _headerMap(regData[0] || []);
+      var cName = _idx(rmap, ['name']);
+      var cEmail = _idx(rmap, ['email','e-mail']);
+      var cPhone = _idx(rmap, ['phone']);
+      var cClass = _idx(rmap, ['class choice','class','classchoice']);
+      var cTime = _idx(rmap, ['timestamp']);
+      
+      for (var i = 1; i < regData.length; i++) {
+        var classChoiceRaw = _s(regData[i][cClass]);
+        var classChoice = classChoiceRaw.replace(/\s+/g, ' ').trim().toLowerCase();
+        var regInfo = [
+          regData[i][cName] || '',
+          regData[i][cEmail] || '',
+          regData[i][cPhone] || '',
+          regData[i][cTime] || ''
+        ];
+        // Bulletproof matching for class names
+        if (/tuesday/i.test(classChoiceRaw)) {
+          tuesdayRegs.push(regInfo);
+        } else if (/friday/i.test(classChoiceRaw)) {
+          fridayRegs.push(regInfo);
+        }
+      }
+    }
+    
+    // Process waitlist data
+    var tuesdayWait = [];
+    var fridayWait = [];
+    
+    if (waitData.length > 1) {
+      var wmap = _headerMap(waitData[0] || []);
+      var wName = _idx(wmap, ['name']);
+      var wEmail = _idx(wmap, ['email','e-mail']);
+      var wPhone = _idx(wmap, ['phone']);
+      var wClass = _idx(wmap, ['class choice','class','classchoice']);
+      var wPos = _idx(wmap, ['position']);
+      var wTime = _idx(wmap, ['timestamp']);
+      
+      for (var j = 1; j < waitData.length; j++) {
+        var classChoiceRaw = _s(waitData[j][wClass]);
+        var classChoice = classChoiceRaw.replace(/\s+/g, ' ').trim().toLowerCase();
+        var waitInfo = [
+          waitData[j][wPos] || '',
+          waitData[j][wName] || '',
+          waitData[j][wEmail] || '',
+          waitData[j][wPhone] || '',
+          waitData[j][wTime] || ''
+        ];
+        // Bulletproof matching for class names
+        if (/tuesday/i.test(classChoiceRaw)) {
+          tuesdayWait.push(waitInfo);
+        } else if (/friday/i.test(classChoiceRaw)) {
+          fridayWait.push(waitInfo);
+        }
+      }
+    }
+    
+    // Update summary table
+    dashSheet.getRange(6, 2).setValue(tuesdayRegs.length); // Tuesday registered
+    dashSheet.getRange(6, 3).setValue(CAPACITY_PER_CLASS - tuesdayRegs.length); // Tuesday available
+    dashSheet.getRange(6, 4).setValue(tuesdayWait.length); // Tuesday waitlist
+    
+    dashSheet.getRange(7, 2).setValue(fridayRegs.length); // Friday registered
+    dashSheet.getRange(7, 3).setValue(CAPACITY_PER_CLASS - fridayRegs.length); // Friday available
+    dashSheet.getRange(7, 4).setValue(fridayWait.length); // Friday waitlist
+    
+    dashSheet.getRange(8, 2).setValue(tuesdayRegs.length + fridayRegs.length); // Total registered
+    dashSheet.getRange(8, 4).setValue(tuesdayWait.length + fridayWait.length); // Total waitlisted
+    
+    // Build all content in arrays first, then write to sheet at once
+    var allContent = [];
+    
+    // SECTION 1: TUESDAY REGISTRATIONS
+    allContent.push(['']); // One blank row for spacing
+    allContent.push(['TUESDAY 4:30-5:30 PM REGISTRATIONS']);
+    allContent.push(['Name', 'Email', 'Phone', 'Registration Time']);
+    
+    if (tuesdayRegs.length > 0) {
+      for (var t = 0; t < tuesdayRegs.length; t++) {
+        allContent.push(tuesdayRegs[t]);
+      }
+    } else {
+      allContent.push(['No registrations yet']);
+    }
+    
+    // SECTION 2: TUESDAY WAITLIST
+    allContent.push(['']); // One blank row for spacing
+    allContent.push(['TUESDAY 4:30-5:30 PM WAITLIST']);  
+    allContent.push(['Position', 'Name', 'Email', 'Phone', 'Waitlist Time']);
+    
+    if (tuesdayWait.length > 0) {
+      for (var tw = 0; tw < tuesdayWait.length; tw++) {
+        allContent.push(tuesdayWait[tw]);
+      }
+    } else {
+      allContent.push(['No waitlist']);
+    }
+    
+    // SECTION 3: FRIDAY REGISTRATIONS
+    allContent.push(['']); // One blank row for spacing
+    allContent.push(['FRIDAY 2:30-3:30 PM REGISTRATIONS']);
+    allContent.push(['Name', 'Email', 'Phone', 'Registration Time']);
+    
+    if (fridayRegs.length > 0) {
+      for (var f = 0; f < fridayRegs.length; f++) {
+        allContent.push(fridayRegs[f]);
+      }
+    } else {
+      allContent.push(['No registrations yet']);
+    }
+    
+    // SECTION 4: FRIDAY WAITLIST
+    allContent.push(['']); // One blank row for spacing
+    allContent.push(['FRIDAY 2:30-3:30 PM WAITLIST']);
+    allContent.push(['Position', 'Name', 'Email', 'Phone', 'Waitlist Time']);
+    
+    if (fridayWait.length > 0) {
+      for (var fw = 0; fw < fridayWait.length; fw++) {
+        allContent.push(fridayWait[fw]);
+      }
+    } else {
+      allContent.push(['No waitlist']);
+    }
+    
+    // Write all content at once starting from row 9
+    if (allContent.length > 0) {
+      // Ensure all rows have the same number of columns (5)
+      for (var c = 0; c < allContent.length; c++) {
+        while (allContent[c].length < 5) {
+          allContent[c].push('');
+        }
+      }
+      dashSheet.getRange(9, 1, allContent.length, 5).setValues(allContent);
+    }
+    
+    // Format section headers - track row positions
+    var currentRow = 9;
+    var sectionHeaders = [];
+    
+    for (var a = 0; a < allContent.length; a++) {
+      var cellValue = allContent[a][0] ? allContent[a][0].toString() : '';
+      
+      if (cellValue.includes('TUESDAY') && cellValue.includes('REGISTRATIONS')) {
+        sectionHeaders.push({row: currentRow + a, type: 'tues_reg'});
+      } else if (cellValue.includes('TUESDAY') && cellValue.includes('WAITLIST')) {
+        sectionHeaders.push({row: currentRow + a, type: 'tues_wait'});
+      } else if (cellValue.includes('FRIDAY') && cellValue.includes('REGISTRATIONS')) {
+        sectionHeaders.push({row: currentRow + a, type: 'fri_reg'});
+      } else if (cellValue.includes('FRIDAY') && cellValue.includes('WAITLIST')) {
+        sectionHeaders.push({row: currentRow + a, type: 'fri_wait'});
+      } else if (cellValue === 'Name' || cellValue === 'Position') {
+        sectionHeaders.push({row: currentRow + a, type: 'column_header'});
+      }
+    }
+    
+    // Apply formatting
+    for (var h = 0; h < sectionHeaders.length; h++) {
+      var header = sectionHeaders[h];
+      switch(header.type) {
+        case 'tues_reg':
+          dashSheet.getRange(header.row, 1).setFontWeight('bold').setFontSize(12).setBackground('#fff2e6');
+          break;
+        case 'tues_wait':
+          dashSheet.getRange(header.row, 1).setFontWeight('bold').setFontSize(12).setBackground('#ffe6e6');
+          break;
+        case 'fri_reg':
+          dashSheet.getRange(header.row, 1).setFontWeight('bold').setFontSize(12).setBackground('#e6ffe6');
+          break;
+        case 'fri_wait':
+          dashSheet.getRange(header.row, 1).setFontWeight('bold').setFontSize(12).setBackground('#e6f0ff');
+          break;
+        case 'column_header':
+          dashSheet.getRange(header.row, 1, 1, 5).setFontWeight('bold').setBackground('#f0f0f0');
+          break;
+      }
+    }
+    
+    // Auto-resize columns
+    dashSheet.autoResizeColumns(1, 5);
+    
+    Logger.log('Clean 4-section dashboard rebuilt successfully at: ' + new Date());
+    
+  } catch (error) {
+    Logger.log('Dashboard rebuild failed: ' + error.toString());
+    try {
+      setupDashboardHeaders();
+      Logger.log('Dashboard recreated due to error');
+    } catch (e2) {
+      Logger.log('Failed to recreate dashboard: ' + e2.toString());
+    }
+  }
+}
+
+// Test function to set up everything
+function setupCompleteDashboard() {
+  setupDashboardHeaders();
+  _rebuildDashboard();
+  return 'Complete dashboard setup finished';
+}
+
+/*** DASHBOARD AUTO-UPDATE TRIGGER SETUP ***/
+function setupDashboardTrigger() {
+  // Remove existing triggers for _rebuildDashboard
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === '_rebuildDashboard') {
+      ScriptApp.deleteTrigger(triggers[i]);
+    }
+  }
+  // Add a new time-based trigger (every 10 minutes)
+  ScriptApp.newTrigger('_rebuildDashboard')
+    .timeBased()
+    .everyMinutes(10)
+    .create();
+  return 'Dashboard auto-update trigger installed (every 10 minutes)';
+}
+
+/*** WEEKLY RESET TRIGGER SETUP ***/
+function setupWeeklyResetTrigger() {
+  // Remove existing triggers for clearAllRegistrations
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'clearAllRegistrations') {
+      ScriptApp.deleteTrigger(triggers[i]);
+    }
+  }
+  // Ottawa time zone is America/Toronto
+  ScriptApp.newTrigger('clearAllRegistrations')
+    .timeBased()
+    .onWeekDay(ScriptApp.WeekDay.SATURDAY)
+    .atHour(23) // 11 PM
+    .nearMinute(30) // 11:30 PM
+    .inTimezone('America/Toronto')
+    .create();
+  return 'Weekly reset trigger installed for Saturday at 11:30 PM Ottawa time';
+}
