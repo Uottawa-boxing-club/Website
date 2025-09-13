@@ -462,21 +462,13 @@ function setupDashboardHeaders() {
   // Clear everything
   dashSheet.clear();
   
-  // Header and summary
+  // Header only
   dashSheet.appendRow(['uOttawa Boxing Club - Registration Dashboard']);
   dashSheet.appendRow(['Last Updated: ' + new Date().toString()]);
   dashSheet.appendRow(['']);
-  dashSheet.appendRow(['SUMMARY']);
-  dashSheet.appendRow(['Class', 'Registered', 'Available', 'Waitlisted']);
-  dashSheet.appendRow(['Tuesday 4:30–5:30 PM', 0, CAPACITY_PER_CLASS, 0]);
-  dashSheet.appendRow(['Friday 2:30–3:30 PM', 0, CAPACITY_PER_CLASS, 0]);
-  dashSheet.appendRow(['TOTALS:', 0, '', 0]);
   
   // Format headers
   dashSheet.getRange(1, 1).setFontWeight('bold').setFontSize(16);
-  dashSheet.getRange(4, 1).setFontWeight('bold').setFontSize(14).setBackground('#e6f3ff');
-  dashSheet.getRange(5, 1, 1, 4).setFontWeight('bold').setBackground('#f0f0f0');
-  dashSheet.getRange(8, 1).setFontWeight('bold');
   
   // Auto-resize columns
   dashSheet.autoResizeColumns(1, 5);
@@ -491,7 +483,7 @@ function _rebuildDashboard() {
     var dashSheet = ss.getSheetByName(DASHBOARD_TAB_NAME);
     
     // If dashboard doesn't exist or is too small, recreate it
-    if (!dashSheet || dashSheet.getLastRow() < 8) {
+    if (!dashSheet || dashSheet.getLastRow() < 3) {
       setupDashboardHeaders();
       dashSheet = ss.getSheetByName(DASHBOARD_TAB_NAME);
     }
@@ -499,10 +491,10 @@ function _rebuildDashboard() {
     // Update timestamp
     dashSheet.getRange(2, 1).setValue('Last Updated: ' + new Date().toString());
     
-    // Clear everything below the summary (row 9 onwards)
+    // Clear everything below the header (row 4 onwards)
     var lastRow = dashSheet.getLastRow();
-    if (lastRow > 8) {
-      dashSheet.deleteRows(9, lastRow - 8);
+    if (lastRow > 3) {
+      dashSheet.deleteRows(4, lastRow - 3);
     }
     
     // Get data using existing helper functions
@@ -573,24 +565,11 @@ function _rebuildDashboard() {
       }
     }
     
-    // Update summary table
-    dashSheet.getRange(6, 2).setValue(tuesdayRegs.length); // Tuesday registered
-    dashSheet.getRange(6, 3).setValue(CAPACITY_PER_CLASS - tuesdayRegs.length); // Tuesday available
-    dashSheet.getRange(6, 4).setValue(tuesdayWait.length); // Tuesday waitlist
-    
-    dashSheet.getRange(7, 2).setValue(fridayRegs.length); // Friday registered
-    dashSheet.getRange(7, 3).setValue(CAPACITY_PER_CLASS - fridayRegs.length); // Friday available
-    dashSheet.getRange(7, 4).setValue(fridayWait.length); // Friday waitlist
-    
-    dashSheet.getRange(8, 2).setValue(tuesdayRegs.length + fridayRegs.length); // Total registered
-    dashSheet.getRange(8, 4).setValue(tuesdayWait.length + fridayWait.length); // Total waitlisted
-    
     // Build all content in arrays first, then write to sheet at once
     var allContent = [];
     
     // SECTION 1: TUESDAY REGISTRATIONS
-    allContent.push(['']); // One blank row for spacing
-    allContent.push(['TUESDAY 4:30-5:30 PM REGISTRATIONS']);
+    allContent.push(['TUESDAY 4:30-5:30 PM REGISTRATIONS (' + tuesdayRegs.length + '/' + CAPACITY_PER_CLASS + ')']);
     allContent.push(['Name', 'Email', 'Phone', 'Registration Time']);
     
     if (tuesdayRegs.length > 0) {
@@ -603,8 +582,9 @@ function _rebuildDashboard() {
     
     // SECTION 2: TUESDAY WAITLIST
     allContent.push(['']); // One blank row for spacing
-    allContent.push(['TUESDAY 4:30-5:30 PM WAITLIST']);  
+    allContent.push(['TUESDAY 4:30-5:30 PM WAITLIST (' + tuesdayWait.length + ')']);  
     allContent.push(['Position', 'Name', 'Email', 'Phone', 'Waitlist Time']);
+    
     
     if (tuesdayWait.length > 0) {
       for (var tw = 0; tw < tuesdayWait.length; tw++) {
@@ -616,7 +596,7 @@ function _rebuildDashboard() {
     
     // SECTION 3: FRIDAY REGISTRATIONS
     allContent.push(['']); // One blank row for spacing
-    allContent.push(['FRIDAY 2:30-3:30 PM REGISTRATIONS']);
+    allContent.push(['FRIDAY 2:30-3:30 PM REGISTRATIONS (' + fridayRegs.length + '/' + CAPACITY_PER_CLASS + ')']);
     allContent.push(['Name', 'Email', 'Phone', 'Registration Time']);
     
     if (fridayRegs.length > 0) {
@@ -629,7 +609,7 @@ function _rebuildDashboard() {
     
     // SECTION 4: FRIDAY WAITLIST
     allContent.push(['']); // One blank row for spacing
-    allContent.push(['FRIDAY 2:30-3:30 PM WAITLIST']);
+    allContent.push(['FRIDAY 2:30-3:30 PM WAITLIST (' + fridayWait.length + ')']);
     allContent.push(['Position', 'Name', 'Email', 'Phone', 'Waitlist Time']);
     
     if (fridayWait.length > 0) {
@@ -640,7 +620,7 @@ function _rebuildDashboard() {
       allContent.push(['No waitlist']);
     }
     
-    // Write all content at once starting from row 9
+    // Write all content at once starting from row 4
     if (allContent.length > 0) {
       // Ensure all rows have the same number of columns (5)
       for (var c = 0; c < allContent.length; c++) {
@@ -648,11 +628,11 @@ function _rebuildDashboard() {
           allContent[c].push('');
         }
       }
-      dashSheet.getRange(9, 1, allContent.length, 5).setValues(allContent);
+      dashSheet.getRange(4, 1, allContent.length, 5).setValues(allContent);
     }
     
     // Format section headers - track row positions
-    var currentRow = 9;
+    var currentRow = 4;
     var sectionHeaders = [];
     
     for (var a = 0; a < allContent.length; a++) {
@@ -671,24 +651,24 @@ function _rebuildDashboard() {
       }
     }
     
-    // Apply formatting
+    // Apply formatting with different colors for each section
     for (var h = 0; h < sectionHeaders.length; h++) {
       var header = sectionHeaders[h];
       switch(header.type) {
         case 'tues_reg':
-          dashSheet.getRange(header.row, 1).setFontWeight('bold').setFontSize(12).setBackground('#fff2e6');
+          dashSheet.getRange(header.row, 1, 1, 5).setFontWeight('bold').setFontSize(12).setBackground('#e3f2fd'); // Light Blue
           break;
         case 'tues_wait':
-          dashSheet.getRange(header.row, 1).setFontWeight('bold').setFontSize(12).setBackground('#ffe6e6');
+          dashSheet.getRange(header.row, 1, 1, 5).setFontWeight('bold').setFontSize(12).setBackground('#fff3e0'); // Light Orange
           break;
         case 'fri_reg':
-          dashSheet.getRange(header.row, 1).setFontWeight('bold').setFontSize(12).setBackground('#e6ffe6');
+          dashSheet.getRange(header.row, 1, 1, 5).setFontWeight('bold').setFontSize(12).setBackground('#e8f5e8'); // Light Green
           break;
         case 'fri_wait':
-          dashSheet.getRange(header.row, 1).setFontWeight('bold').setFontSize(12).setBackground('#e6f0ff');
+          dashSheet.getRange(header.row, 1, 1, 5).setFontWeight('bold').setFontSize(12).setBackground('#fce4ec'); // Light Pink
           break;
         case 'column_header':
-          dashSheet.getRange(header.row, 1, 1, 5).setFontWeight('bold').setBackground('#f0f0f0');
+          dashSheet.getRange(header.row, 1, 1, 5).setFontWeight('bold').setBackground('#f5f5f5'); // Light Gray
           break;
       }
     }
