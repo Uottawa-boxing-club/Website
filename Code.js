@@ -726,9 +726,9 @@ function setupWeeklyResetTrigger() {
   ScriptApp.newTrigger('clearAllRegistrations')
     .timeBased()
     .onWeekDay(ScriptApp.WeekDay.SATURDAY)
-    .atHour(23) // 11 PM
-    .nearMinute(30) // 11:30 PM
+    .atHour(11) // 11 AM
+    .nearMinute(30) // 11:30 AM
     .inTimezone('America/Toronto')
     .create();
-  return 'Weekly reset trigger installed for Saturday at 11:30 PM Ottawa time';
+  return 'Weekly reset trigger installed for Saturday at 11:30 AM Ottawa time';
 }

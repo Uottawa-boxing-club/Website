@@ -10,7 +10,7 @@
       body {
         font-family: Arial, sans-serif;
         min-height: 100vh;
-        background-image: url("https://drive.google.com/uc?id=1hBYRBmR5nF1N_7Fo6KGTAmLSCSKcMRDs");
+        background-image: url("https://lh3.googleusercontent.com/d/1y4ab3yFowXEtM8kklRq7AfOFUeWbPsYS");
         background-repeat: no-repeat;
         background-position: center center;
         background-attachment: fixed;
@@ -19,6 +19,21 @@
         justify-content: center;
         align-items: flex-start;
         padding: 40px 16px;
+      }
+      body::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+          background-image: url("https://lh3.googleusercontent.com/d/1y4ab3yFowXEtM8kklRq7AfOFUeWbPsYS");
+        background-repeat: no-repeat;
+        background-position: center center;
+        background-attachment: fixed;
+        background-size: cover;
+        filter: blur(3px);
+        z-index: -1;
       }
       .container {
         background: rgba(255, 255, 255, 0.92);
@@ -50,10 +65,11 @@
         font-size: 12px; color: #444;
       }
       .lang-toggle button {
-        background: #fff; border: 1px solid #ccc; border-radius: 999px; padding: 6px 10px;
-        cursor: pointer; font-weight: 600;
+        background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 999px; padding: 6px 10px;
+        cursor: pointer; font-weight: 600; color: #495057; transition: all 0.25s;
       }
       .lang-toggle button.active { background: var(--brand); color: #fff; border-color: var(--brand); }
+      .lang-toggle button:hover:not(.active) { background: #eef1f3; border-color: #cfd6dc; }
 
       .success-message, .error-message {
         padding: 12px; border-radius: 6px; margin: 10px 0 4px; display: none; text-align: left; font-size: 14px;
@@ -79,7 +95,6 @@
     <div class="container">
       <!-- Language toggle -->
       <div class="lang-toggle" aria-label="Language">
-        <span id="langLabel">Language:</span>
         <button type="button" id="btnEN" class="active">EN</button>
         <button type="button" id="btnFR">FR</button>
       </div>
@@ -179,12 +194,10 @@
       // Language toggle
       const btnEN = document.getElementById('btnEN');
       const btnFR = document.getElementById('btnFR');
-      const langLabel = document.getElementById('langLabel');
 
       /***** i18n strings (EN/FR) *****/
       const i18n = {
         en: {
-          language: 'Language:',
           pageTitle: 'Register Now',
           tabs: { register: 'Register', cancel: 'Cancel', about: 'About Us', instructions: 'Instructions' },
           inputs: { name: 'Full name', email: 'Email', phone: 'Phone number' },
@@ -214,7 +227,6 @@
             `Cancelled ${deleted} entr${deleted === 1 ? 'y' : 'ies'}. Promoted ${promoted} from the waitlist.`
         },
         fr: {
-          language: 'Langue :',
           pageTitle: 'Inscrivez-vous maintenant',
           tabs: { register: 'Inscription', cancel: 'Annuler', about: 'À propos', instructions: 'Consignes' },
           inputs: { name: 'Nom complet', email: 'Courriel', phone: 'Numéro de téléphone' },
@@ -263,9 +275,6 @@
         btnFR.classList.toggle('active', lang === 'fr');
 
         const t = i18n[lang];
-
-        // Label
-        langLabel.textContent = t.language;
 
         // Tabs + title
         registerModeBtn.textContent = t.tabs.register;
