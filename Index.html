@@ -23,11 +23,9 @@
       body::before {
         content: '';
         position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-          background-image: url("https://lh3.googleusercontent.com/d/1y4ab3yFowXEtM8kklRq7AfOFUeWbPsYS");
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background-image: url("https://lh3.googleusercontent.com/d/1y4ab3yFowXEtM8kklRq7AfOFUeWbPsYS");
         background-repeat: no-repeat;
         background-position: center center;
         background-attachment: fixed;
@@ -58,7 +56,6 @@
       .mode-btn.active { background: var(--brand); color: white; border-color: var(--brand); }
       .mode-btn:hover:not(.active) { background: #eef1f3; border-color: #cfd6dc; }
 
-      /* Language toggle */
       .lang-toggle {
         position: absolute; top: 12px; right: 12px;
         display: inline-flex; gap: 6px; align-items: center;
@@ -125,19 +122,15 @@
 
         <!-- Registration class selector -->
         <div id="classChoiceRow">
-          <select name="classChoice">
-            <option value="">Select a class day</option>
-            <option value="Tuesday 4:30–5:30 PM">Tuesday: 4:30–5:30 PM</option>
-            <option value="Friday 2:30–3:30 PM">Friday: 2:30–3:30 PM</option>
+          <select name="classChoice" id="classChoice">
+            <!-- options will be injected dynamically based on date -->
           </select>
         </div>
 
         <!-- Cancel selector (All / specific class) -->
         <div id="cancelAllRow" style="display:none;">
           <select id="cancelClassSelect">
-            <option value="__ALL__">All my registrations</option>
-            <option value="Tuesday 4:30–5:30 PM">Only Tuesday: 4:30–5:30 PM</option>
-            <option value="Friday 2:30–3:30 PM">Only Friday: 2:30–3:30 PM</option>
+            <!-- options will be injected dynamically based on date -->
           </select>
           <small id="cancelHelper" class="helper" style="display:block;">
             Choose the class to cancel, or pick <em>All my registrations</em>.
@@ -163,11 +156,10 @@
           <li><strong>Late arrivals:</strong> your spot may be given to the waitlist if you are late.</li>
         </ul>
         <h3 style="margin:12px 0 8px;color:#333;">Weekly Schedule</h3>
-        <ul>
-          <li><strong>Tuesdays:</strong> 4:30–5:30 PM</li>
-          <li><strong>Fridays:</strong> 2:30–3:30 PM</li>
+        <ul id="weeklyList">
+          <!-- filled dynamically -->
         </ul>
-        <p style="margin-top:10px;font-size:14px;color:#444;">
+        <p id="resetText" style="margin-top:10px;font-size:14px;color:#444;">
           Signups reset every <strong>Saturday at 11:00 AM</strong>.
         </p>
       </div>
@@ -190,10 +182,45 @@
       const pageTitle = document.getElementById('pageTitle');
       const aboutContent = document.getElementById('aboutContent');
       const instructionsContent = document.getElementById('instructionsContent');
+      const weeklyList = document.getElementById('weeklyList');
+      const classChoice = document.getElementById('classChoice');
 
       // Language toggle
       const btnEN = document.getElementById('btnEN');
       const btnFR = document.getElementById('btnFR');
+
+      /***** Date-based schedule (client-side mirror of server logic) *****/
+      function isOverrideWeekClient(now = new Date()) {
+        // EFFECTIVE NOW: Sat Sep 27, 2025 to Mon Oct 6, 2025 (exclusive)
+        const start = new Date('2025-09-27T00:00:00-04:00');
+        const end   = new Date('2025-10-06T00:00:00-04:00');
+        return now >= start && now < end;
+      }
+      function currentScheduleClient() {
+        if (isOverrideWeekClient()) {
+          return {
+            // values must match what users will submit and what server regex can detect
+            day1Value: 'Tuesday 4:30–5:30 PM',
+            day2Value: 'Wednesday 4:00–5:00 PM',
+            day1EN: 'Tuesday: 4:30–5:30 PM',
+            day2EN: 'Wednesday: 4:00–5:00 PM',
+            day1FR: 'Mardi : 16 h 30 – 17 h 30',
+            day2FR: 'Mercredi : 16 h 00 – 17 h 00',
+            weeklyEN: ['Tuesdays: 4:30–5:30 PM','Wednesdays: 4:00–5:00 PM'],
+            weeklyFR: ['Mardis : 16 h 30 – 17 h 30','Mercredis : 16 h 00 – 17 h 00']
+          };
+        }
+        return {
+          day1Value: 'Tuesday 4:30–5:30 PM',
+          day2Value: 'Friday 2:30–3:30 PM',
+          day1EN: 'Tuesday: 4:30–5:30 PM',
+          day2EN: 'Friday: 2:30–3:30 PM',
+          day1FR: 'Mardi : 16 h 30 – 17 h 30',
+          day2FR: 'Vendredi : 14 h 30 – 15 h 30',
+          weeklyEN: ['Tuesdays: 4:30–5:30 PM','Fridays: 2:30–3:30 PM'],
+          weeklyFR: ['Mardis : 16 h 30 – 17 h 30','Vendredis : 14 h 30 – 15 h 30']
+        };
+      }
 
       /***** i18n strings (EN/FR) *****/
       const i18n = {
@@ -202,11 +229,7 @@
           tabs: { register: 'Register', cancel: 'Cancel', about: 'About Us', instructions: 'Instructions' },
           inputs: { name: 'Full name', email: 'Email', phone: 'Phone number' },
           registerSelectPlaceholder: 'Select a class day',
-          tue: 'Tuesday: 4:30–5:30 PM',
-          fri: 'Friday: 2:30–3:30 PM',
           cancelSelectAll: 'All my registrations',
-          cancelSelectTue: 'Only Tuesday: 4:30–5:30 PM',
-          cancelSelectFri: 'Only Friday: 2:30–3:30 PM',
           cancelHelper: 'Choose the class to cancel, or pick All my registrations.',
           submitRegister: 'Register',
           submitCancel: 'Cancel Registration',
@@ -219,8 +242,6 @@
           cancellation: 'Cancellation policy: no cancellations within 12 hours of class time.',
           late: 'Late arrivals: your spot may be given to the waitlist if you are late.',
           weeklySchedule: 'Weekly Schedule',
-          tueItem: 'Tuesdays: 4:30–5:30 PM',
-          friItem: 'Fridays: 2:30–3:30 PM',
           reset: 'Signups reset every Saturday at 11:00 AM.',
           successRegistered: 'Registered successfully! Check your email for confirmation.',
           successCancelled: (deleted, promoted) =>
@@ -231,11 +252,7 @@
           tabs: { register: 'Inscription', cancel: 'Annuler', about: 'À propos', instructions: 'Consignes' },
           inputs: { name: 'Nom complet', email: 'Courriel', phone: 'Numéro de téléphone' },
           registerSelectPlaceholder: 'Choisissez une journée de cours',
-          tue: 'Mardi : 16 h 30 – 17 h 30',
-          fri: 'Vendredi : 14 h 30 – 15 h 30',
           cancelSelectAll: 'Toutes mes inscriptions',
-          cancelSelectTue: 'Uniquement le mardi : 16 h 30 – 17 h 30',
-          cancelSelectFri: 'Uniquement le vendredi : 14 h 30 – 15 h 30',
           cancelHelper: 'Choisissez le cours à annuler, ou sélectionnez « Toutes mes inscriptions ».',
           submitRegister: 'S’inscrire',
           submitCancel: 'Annuler l’inscription',
@@ -248,8 +265,6 @@
           cancellation: 'Politique d’annulation : aucune annulation dans les 12 heures précédant le cours.',
           late: 'Retards : votre place peut être donnée à la liste d’attente si vous arrivez en retard.',
           weeklySchedule: 'Horaire hebdomadaire',
-          tueItem: 'Mardis : 16 h 30 – 17 h 30',
-          friItem: 'Vendredis : 14 h 30 – 15 h 30',
           reset: 'Les inscriptions sont réinitialisées chaque samedi à 11 h.',
           successRegistered: 'Inscription réussie! Vérifiez votre courriel pour la confirmation.',
           successCancelled: (deleted, promoted) =>
@@ -267,52 +282,83 @@
         errorMessage.textContent = '';
       }
 
+      function rebuildClassSelects() {
+        const sched = currentScheduleClient();
+        // Registration select
+        classChoice.innerHTML = '';
+        const opt0 = document.createElement('option');
+        opt0.value = '';
+        opt0.textContent = (i18n[lang].registerSelectPlaceholder);
+        classChoice.appendChild(opt0);
+
+        const opt1 = document.createElement('option');
+        opt1.value = sched.day1Value;
+        opt1.textContent = (lang === 'fr') ? sched.day1FR : sched.day1EN;
+        classChoice.appendChild(opt1);
+
+        const opt2 = document.createElement('option');
+        opt2.value = sched.day2Value;
+        opt2.textContent = (lang === 'fr') ? sched.day2FR : sched.day2EN;
+        classChoice.appendChild(opt2);
+
+        // Cancel select
+        cancelClassSelect.innerHTML = '';
+        const c0 = document.createElement('option');
+        c0.value = '__ALL__';
+        c0.textContent = (i18n[lang].cancelSelectAll || 'All my registrations');
+        cancelClassSelect.appendChild(c0);
+
+        const c1 = document.createElement('option');
+        c1.value = sched.day1Value;
+        c1.textContent = (lang === 'fr') ? ('Uniquement ' + sched.day1FR) : ('Only ' + sched.day1EN);
+        cancelClassSelect.appendChild(c1);
+
+        const c2 = document.createElement('option');
+        c2.value = sched.day2Value;
+        c2.textContent = (lang === 'fr') ? ('Uniquement ' + sched.day2FR) : ('Only ' + sched.day2EN);
+        cancelClassSelect.appendChild(c2);
+
+        // Instructions weekly list
+        weeklyList.innerHTML = '';
+        const weekly = (lang === 'fr') ? sched.weeklyFR : sched.weeklyEN;
+        weekly.forEach(txt => {
+          const li = document.createElement('li');
+          li.textContent = txt;
+          weeklyList.appendChild(li);
+        });
+      }
+
       function setLang(next) {
         lang = next;
         localStorage.setItem('lang', lang);
-        // toggle buttons
         btnEN.classList.toggle('active', lang === 'en');
         btnFR.classList.toggle('active', lang === 'fr');
 
         const t = i18n[lang];
-
-        // Tabs + title
         registerModeBtn.textContent = t.tabs.register;
         cancelModeBtn.textContent = t.tabs.cancel;
         aboutModeBtn.textContent = t.tabs.about;
         instructionsModeBtn.textContent = t.tabs.instructions;
 
-        // Inputs placeholders
         form.name.placeholder = t.inputs.name;
         form.email.placeholder = t.inputs.email;
         form.phone.placeholder = t.inputs.phone;
 
-        // Registration class dropdown
-        const regSel = form.classChoice;
-        regSel.options[0].text = t.registerSelectPlaceholder;
-        regSel.options[1].text = t.tue;
-        regSel.options[2].text = t.fri;
-
-        // Cancel dropdown
-        cancelClassSelect.options[0].text = t.cancelSelectAll;
-        cancelClassSelect.options[1].text = t.cancelSelectTue;
-        cancelClassSelect.options[2].text = t.cancelSelectFri;
         cancelHelper.textContent = t.cancelHelper;
-
-        // Static content sections
         document.querySelector('#instructionsContent h3').textContent = t.beforeYouRegister;
+
         const instrLis = document.querySelectorAll('#instructionsContent ul:first-of-type li');
         instrLis[0].innerHTML = `<strong>${t.arriveEarly.split(':')[0]}:</strong> ${t.arriveEarly.split(': ').slice(1).join(': ')}`;
         instrLis[1].innerHTML = `<strong>${t.cancellation.split(':')[0]}:</strong> ${t.cancellation.split(': ').slice(1).join(': ')}`;
         instrLis[2].innerHTML = `<strong>${t.late.split(':')[0]}:</strong> ${t.late.split(': ').slice(1).join(': ')}`;
 
         document.querySelectorAll('#instructionsContent h3')[1].textContent = t.weeklySchedule;
-        const schedLis = document.querySelectorAll('#instructionsContent ul:nth-of-type(2) li');
-        schedLis[0].textContent = t.tueItem;
-        schedLis[1].textContent = t.friItem;
-        document.querySelector('#instructionsContent p').textContent = t.reset;
+        document.getElementById('resetText').textContent = t.reset;
 
-        // Title depends on mode
+        // Rebuild selects and weekly schedule for the selected language & current week
+        rebuildClassSelects();
+
+        // Title & submit based on mode
         if (currentMode === 'register') {
           pageTitle.textContent = t.pageTitle;
           submitBtn.textContent = t.submitRegister;
@@ -369,7 +415,6 @@
       cancelModeBtn.addEventListener('click', () => switchMode('cancel'));
       aboutModeBtn.addEventListener('click', () => switchMode('about'));
       instructionsModeBtn.addEventListener('click', () => switchMode('instructions'));
-
       btnEN.addEventListener('click', () => setLang('en'));
       btnFR.addEventListener('click', () => setLang('fr'));
 
@@ -378,7 +423,6 @@
         hideMessages();
 
         const t = i18n[lang];
-
         const base = {
           name: (form.name.value || '').trim(),
           email: (form.email.value || '').trim(),
@@ -386,22 +430,22 @@
         };
 
         if (currentMode === 'register') {
-          const classChoice = form.classChoice ? (form.classChoice.value || '').trim() : '';
-          if (!base.name || !base.email || !base.phone || !classChoice) {
+          const selected = (classChoice.value || '').trim();
+          if (!base.name || !base.email || !base.phone || !selected) {
             errorMessage.textContent = t.msgFillAll;
             errorMessage.style.display = 'block';
             return;
           }
-          base.classChoice = classChoice;
-          submitBtn.textContent = t.submitRegister.replace(/e?$/, 'ing…'); // simple “Registering…” feel
+          base.classChoice = selected;
+          submitBtn.textContent = t.submitRegister.replace(/e?$/, 'ing…');
         } else if (currentMode === 'cancel') {
           if (!base.email) {
             errorMessage.textContent = t.msgEmailOnly;
             errorMessage.style.display = 'block';
             return;
           }
-          const selection = cancelClassSelect.value;
-          base.classChoice = (selection === '__ALL__') ? '' : selection;
+          const sel = cancelClassSelect.value;
+          base.classChoice = (sel === '__ALL__') ? '' : sel;
           submitBtn.textContent = t.submitCancel + '…';
         }
 
@@ -441,8 +485,9 @@
       });
 
       // Initialize
-      setLang(lang);
-      switchMode('register');
+      setLang(lang);               // sets language text
+      rebuildClassSelects();       // builds selects for current week & language
+      switchMode('register');      // default mode
       cancelClassSelect.value = '__ALL__';
     </script>
   </body>
