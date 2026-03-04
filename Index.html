@@ -86,11 +86,11 @@
       #aboutContent, #instructionsContent { text-align: left; font-size: 15px; line-height: 1.55; color: #2a2a2a; }
       ul { padding-left: 18px; }
       small.helper { display:block; text-align:left; color:#5a5a5a; margin-top:-4px; }
+      .muted { color:#555; font-size: 13px; text-align:left; margin-top: 6px; }
     </style>
   </head>
   <body>
     <div class="container">
-      <!-- Language toggle -->
       <div class="lang-toggle" aria-label="Language">
         <button type="button" id="btnEN" class="active">EN</button>
         <button type="button" id="btnFR">FR</button>
@@ -114,59 +114,50 @@
       <div id="successMessage" class="success-message"></div>
       <div id="errorMessage" class="error-message"></div>
 
-      <!-- Registration / Cancel Form -->
       <form id="regForm">
         <input name="name" placeholder="Full name" maxlength="100" />
         <input name="email" type="email" placeholder="Email" maxlength="100" />
         <input name="phone" type="tel" placeholder="Phone number" maxlength="20" />
 
-        <!-- Registration class selector -->
         <div id="classChoiceRow">
-          <select name="classChoice" id="classChoice">
-            <!-- options will be injected dynamically based on date -->
-          </select>
+          <select name="classChoice" id="classChoice"></select>
+          <div id="scheduleHint" class="muted"></div>
         </div>
 
-        <!-- Cancel selector (All / specific class) -->
         <div id="cancelAllRow" style="display:none;">
-          <select id="cancelClassSelect">
-            <!-- options will be injected dynamically based on date -->
-          </select>
+          <select id="cancelClassSelect"></select>
           <small id="cancelHelper" class="helper" style="display:block;">
-            Choose the class to cancel, or pick <em>All my registrations</em>.
+            Choose the session to cancel, or pick <em>All my registrations</em>.
           </small>
         </div>
 
         <button type="submit" id="submitBtn">Register</button>
       </form>
 
-      <!-- About Us -->
       <div id="aboutContent" style="display:none;">
         <p><strong>Welcome to the uOttawa Boxing Club!</strong> Our mission is to promote fitness, discipline, and community through boxing. We offer beginner-friendly fundamentals, conditioning, pad work, and safe sparring for those who are ready.</p>
         <p>We focus on proper technique, injury prevention, and an inclusive, supportive vibe. Whether you’re just starting or building on experience, you’ll find a place here.</p>
         <p><strong>Questions?</strong> Catch us after class or reach out via the registration email. See you in the gym! 🥊</p>
       </div>
 
-      <!-- Instructions -->
       <div id="instructionsContent" style="display:none;">
-        <h3 style="margin:6px 0 8px;color:#333;">Before You Register</h3>
-        <ul>
+        <h3 style="margin:6px 0 8px;color:#333;" id="beforeHeader">Before You Register</h3>
+        <ul id="policyList">
           <li><strong>Arrive early:</strong> please be at the gym <u>10 minutes before</u> start time.</li>
           <li><strong>Cancellation policy:</strong> <u>no cancellations within 12 hours</u> of class time.</li>
           <li><strong>Late arrivals:</strong> your spot may be given to the waitlist if you are late.</li>
         </ul>
-        <h3 style="margin:12px 0 8px;color:#333;">Weekly Schedule</h3>
-        <ul id="weeklyList">
-          <!-- filled dynamically -->
-        </ul>
+
+        <h3 style="margin:12px 0 8px;color:#333;" id="scheduleHeader">This Week’s Sessions</h3>
+        <ul id="weeklyList"></ul>
+
         <p id="resetText" style="margin-top:10px;font-size:14px;color:#444;">
-          Signups reset every <strong>Saturday at 11:00 AM</strong>.
+          Signups reset every <strong>Saturday at 12:00 PM</strong>.
         </p>
       </div>
     </div>
 
     <script>
-      /***** Elements *****/
       const form = document.getElementById('regForm');
       const submitBtn = document.getElementById('submitBtn');
       const registerModeBtn = document.getElementById('registerModeBtn');
@@ -184,53 +175,19 @@
       const instructionsContent = document.getElementById('instructionsContent');
       const weeklyList = document.getElementById('weeklyList');
       const classChoice = document.getElementById('classChoice');
+      const scheduleHint = document.getElementById('scheduleHint');
 
-      // Language toggle
       const btnEN = document.getElementById('btnEN');
       const btnFR = document.getElementById('btnFR');
 
-      /***** Date-based schedule (client-side mirror of server logic) *****/
-      function isOverrideWeekClient(now = new Date()) {
-        // EFFECTIVE NOW: Sat Sep 27, 2025 to Mon Oct 6, 2025 (exclusive)
-        const start = new Date('2025-09-27T00:00:00-04:00');
-        const end   = new Date('2025-10-06T00:00:00-04:00');
-        return now >= start && now < end;
-      }
-      function currentScheduleClient() {
-        if (isOverrideWeekClient()) {
-          return {
-            // values must match what users will submit and what server regex can detect
-            day1Value: 'Tuesday 4:30–5:30 PM',
-            day2Value: 'Wednesday 4:00–5:00 PM',
-            day1EN: 'Tuesday: 4:30–5:30 PM',
-            day2EN: 'Wednesday: 4:00–5:00 PM',
-            day1FR: 'Mardi : 16 h 30 – 17 h 30',
-            day2FR: 'Mercredi : 16 h 00 – 17 h 00',
-            weeklyEN: ['Tuesdays: 4:30–5:30 PM','Wednesdays: 4:00–5:00 PM'],
-            weeklyFR: ['Mardis : 16 h 30 – 17 h 30','Mercredis : 16 h 00 – 17 h 00']
-          };
-        }
-        return {
-          day1Value: 'Tuesday 4:30–5:30 PM',
-          day2Value: 'Friday 2:30–3:30 PM',
-          day1EN: 'Tuesday: 4:30–5:30 PM',
-          day2EN: 'Friday: 2:30–3:30 PM',
-          day1FR: 'Mardi : 16 h 30 – 17 h 30',
-          day2FR: 'Vendredi : 14 h 30 – 15 h 30',
-          weeklyEN: ['Tuesdays: 4:30–5:30 PM','Fridays: 2:30–3:30 PM'],
-          weeklyFR: ['Mardis : 16 h 30 – 17 h 30','Vendredis : 14 h 30 – 15 h 30']
-        };
-      }
-
-      /***** i18n strings (EN/FR) *****/
       const i18n = {
         en: {
           pageTitle: 'Register Now',
           tabs: { register: 'Register', cancel: 'Cancel', about: 'About Us', instructions: 'Instructions' },
           inputs: { name: 'Full name', email: 'Email', phone: 'Phone number' },
-          registerSelectPlaceholder: 'Select a class day',
+          registerSelectPlaceholder: 'Select a session this week',
           cancelSelectAll: 'All my registrations',
-          cancelHelper: 'Choose the class to cancel, or pick All my registrations.',
+          cancelHelper: 'Choose the session to cancel, or pick All my registrations.',
           submitRegister: 'Register',
           submitCancel: 'Cancel Registration',
           msgFillAll: 'Please fill in all fields.',
@@ -241,8 +198,11 @@
           arriveEarly: 'Arrive early: please be at the gym 10 minutes before start time.',
           cancellation: 'Cancellation policy: no cancellations within 12 hours of class time.',
           late: 'Late arrivals: your spot may be given to the waitlist if you are late.',
-          weeklySchedule: 'Weekly Schedule',
-          reset: 'Signups reset every Saturday at 11:00 AM.',
+          scheduleTitle: 'This Week’s Sessions',
+          reset: 'Signups reset every Saturday at 12:00 PM.',
+          hintLoading: 'Loading this week…',
+          hintNone: 'No sessions in this signup week.',
+          hintNoUpcoming: 'No remaining sessions in this signup week.',
           successRegistered: 'Registered successfully! Check your email for confirmation.',
           successCancelled: (deleted, promoted) =>
             `Cancelled ${deleted} entr${deleted === 1 ? 'y' : 'ies'}. Promoted ${promoted} from the waitlist.`
@@ -251,7 +211,7 @@
           pageTitle: 'Inscrivez-vous maintenant',
           tabs: { register: 'Inscription', cancel: 'Annuler', about: 'À propos', instructions: 'Consignes' },
           inputs: { name: 'Nom complet', email: 'Courriel', phone: 'Numéro de téléphone' },
-          registerSelectPlaceholder: 'Choisissez une journée de cours',
+          registerSelectPlaceholder: 'Choisissez une séance cette semaine',
           cancelSelectAll: 'Toutes mes inscriptions',
           cancelHelper: 'Choisissez le cours à annuler, ou sélectionnez « Toutes mes inscriptions ».',
           submitRegister: 'S’inscrire',
@@ -264,8 +224,11 @@
           arriveEarly: 'Arrivez tôt : soyez au gym 10 minutes avant le début du cours.',
           cancellation: 'Politique d’annulation : aucune annulation dans les 12 heures précédant le cours.',
           late: 'Retards : votre place peut être donnée à la liste d’attente si vous arrivez en retard.',
-          weeklySchedule: 'Horaire hebdomadaire',
-          reset: 'Les inscriptions sont réinitialisées chaque samedi à 11 h.',
+          scheduleTitle: 'Séances de cette semaine',
+          reset: 'Les inscriptions sont réinitialisées chaque samedi à 12 h.',
+          hintLoading: 'Chargement de cette semaine…',
+          hintNone: 'Aucune séance dans cette semaine d’inscription.',
+          hintNoUpcoming: 'Aucune autre séance dans cette semaine d’inscription.',
           successRegistered: 'Inscription réussie! Vérifiez votre courriel pour la confirmation.',
           successCancelled: (deleted, promoted) =>
             `Annulé : ${deleted} entr${deleted === 1 ? 'ée' : 'ées'}. Promu : ${promoted} depuis la liste d’attente.`
@@ -274,6 +237,7 @@
 
       let lang = localStorage.getItem('lang') || 'en';
       let currentMode = 'register';
+      let schedule = []; // from server
 
       function hideMessages() {
         successMessage.style.display = 'none';
@@ -282,50 +246,169 @@
         errorMessage.textContent = '';
       }
 
-      function rebuildClassSelects() {
-        const sched = currentScheduleClient();
+      // ---------- FIXED + SIMPLE: Signup week window in Ottawa ----------
+      // Window: Saturday 12:00 PM (noon) -> next Saturday 12:00 PM, America/Toronto
+      // We compute exact start/end timestamps in UTC based on Ottawa-local calendar parts.
+      function torontoParts(date = new Date()) {
+        const parts = new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'America/Toronto',
+          year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit', hour12: false
+        }).formatToParts(date).reduce((acc, p) => (acc[p.type] = p.value, acc), {});
+        return {
+          y: Number(parts.year),
+          m: Number(parts.month),
+          d: Number(parts.day),
+          hh: Number(parts.hour),
+          mm: Number(parts.minute)
+        };
+      }
+
+      function torontoWeekdayShort(date = new Date()) {
+        return new Intl.DateTimeFormat('en-US', { timeZone: 'America/Toronto', weekday: 'short' }).format(date);
+      }
+
+      function addDaysUTC(dateUTC, days) {
+        const d = new Date(dateUTC.getTime());
+        d.setUTCDate(d.getUTCDate() + days);
+        return d;
+      }
+
+      function getSignupWindowToronto(now = new Date()) {
+        const p = torontoParts(now);
+
+        // Anchor "Ottawa local time" as a UTC timestamp with same calendar parts
+        const nowAnchor = new Date(Date.UTC(p.y, p.m - 1, p.d, p.hh, p.mm, 0));
+
+        // Determine Ottawa weekday
+        const wd = torontoWeekdayShort(now); // "Sat", "Sun", ...
+        const map = { Sun:0, Mon:1, Tue:2, Wed:3, Thu:4, Fri:5, Sat:6 };
+        const dow = map[wd];
+
+        // Find "this week's Saturday" (most recent Saturday) at 12:00
+        // Start with today's date at 12:00 in Ottawa calendar parts
+        const todayNoonAnchor = new Date(Date.UTC(p.y, p.m - 1, p.d, 12, 0, 0));
+
+        // days back to Saturday
+        let daysBack = (dow - 6 + 7) % 7;
+
+        // If it's Saturday before noon, the signup week is still the previous one
+        if (dow === 6 && nowAnchor < todayNoonAnchor) {
+          daysBack = 7;
+        }
+
+        // Compute start (Saturday noon) by subtracting daysBack in UTC date space
+        const start = new Date(Date.UTC(p.y, p.m - 1, p.d - daysBack, 12, 0, 0));
+        const end = addDaysUTC(start, 7); // next Saturday noon
+
+        return { startUTC: start, endUTC: end };
+      }
+
+      // Parse the START time from strings like "4:00–5:00 PM" or "12:00–1:00 PM"
+      function parseStartMinutes(timeRange) {
+        const tr = String(timeRange || '');
+        const left = tr.split('–')[0].trim(); // "4:00" or "12:00"
+        const hasPM = /PM/i.test(tr);
+        const hasAM = /AM/i.test(tr);
+
+        const m = left.match(/^(\d{1,2}):(\d{2})$/);
+        if (!m) return null;
+
+        let hh = Number(m[1]);
+        const mm = Number(m[2]);
+
+        if (hasPM && hh !== 12) hh += 12;
+        if (hasAM && hh === 12) hh = 0;
+
+        return hh * 60 + mm;
+      }
+
+      // Build a comparable UTC timestamp for a session using its isoDate + time
+      function sessionStartUTC(isoDate, timeRange) {
+        const mins = parseStartMinutes(timeRange);
+        if (mins == null) return null;
+        const hh = Math.floor(mins / 60);
+        const mm = mins % 60;
+        const [y, m, d] = String(isoDate).split('-').map(Number);
+        return new Date(Date.UTC(y, m - 1, d, hh, mm, 0));
+      }
+
+      function labelForSession(s) {
+        // show date nicely without timezone shifting the day: use the ISO parts directly
+        const [y, m, d] = String(s.isoDate || '').split('-').map(Number);
+        const dateObj = new Date(Date.UTC(y, (m || 1) - 1, d || 1, 12, 0, 0));
+
+        const dateStr = dateObj.toLocaleDateString(lang === 'fr' ? 'fr-CA' : 'en-CA', {
+          weekday: 'long', month: 'long', day: 'numeric'
+        });
+
+        const day = (lang === 'fr') ? (s.dayFR || s.dayEN) : (s.dayEN || s.dayFR);
+        const type = (lang === 'fr') ? (s.typeFR || s.typeEN) : (s.typeEN || s.typeFR);
+
+        return `${dateStr} — ${day} • ${s.time}${type ? ` (${type})` : ''}`;
+      }
+
+      function rebuildSelects() {
+        const t = i18n[lang];
+
+        const { startUTC, endUTC } = getSignupWindowToronto(new Date());
+
+        // Sessions in signup week (Sat noon -> next Sat noon), by session start time
+        const weekList = schedule
+          .map(s => ({ ...s, _startUTC: sessionStartUTC(s.isoDate, s.time) }))
+          .filter(s => s._startUTC && s._startUTC >= startUTC && s._startUTC < endUTC)
+          .sort((a,b) => a._startUTC - b._startUTC);
+
+        // Upcoming in this signup week (>= now)
+        const now = new Date();
+        const upcoming = weekList.filter(s => s._startUTC >= now);
+
         // Registration select
         classChoice.innerHTML = '';
         const opt0 = document.createElement('option');
         opt0.value = '';
-        opt0.textContent = (i18n[lang].registerSelectPlaceholder);
+        opt0.textContent = t.registerSelectPlaceholder;
         classChoice.appendChild(opt0);
 
-        const opt1 = document.createElement('option');
-        opt1.value = sched.day1Value;
-        opt1.textContent = (lang === 'fr') ? sched.day1FR : sched.day1EN;
-        classChoice.appendChild(opt1);
+        upcoming.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s.value; // backend expects this session key
+          opt.textContent = labelForSession(s);
+          classChoice.appendChild(opt);
+        });
 
-        const opt2 = document.createElement('option');
-        opt2.value = sched.day2Value;
-        opt2.textContent = (lang === 'fr') ? sched.day2FR : sched.day2EN;
-        classChoice.appendChild(opt2);
+        // Hint
+        if (!weekList.length) scheduleHint.textContent = t.hintNone;
+        else if (!upcoming.length) scheduleHint.textContent = t.hintNoUpcoming;
+        else scheduleHint.textContent = '';
 
-        // Cancel select
+        // Cancel select: allow cancelling any session in this signup week
         cancelClassSelect.innerHTML = '';
         const c0 = document.createElement('option');
         c0.value = '__ALL__';
-        c0.textContent = (i18n[lang].cancelSelectAll || 'All my registrations');
+        c0.textContent = t.cancelSelectAll;
         cancelClassSelect.appendChild(c0);
 
-        const c1 = document.createElement('option');
-        c1.value = sched.day1Value;
-        c1.textContent = (lang === 'fr') ? ('Uniquement ' + sched.day1FR) : ('Only ' + sched.day1EN);
-        cancelClassSelect.appendChild(c1);
-
-        const c2 = document.createElement('option');
-        c2.value = sched.day2Value;
-        c2.textContent = (lang === 'fr') ? ('Uniquement ' + sched.day2FR) : ('Only ' + sched.day2EN);
-        cancelClassSelect.appendChild(c2);
-
-        // Instructions weekly list
-        weeklyList.innerHTML = '';
-        const weekly = (lang === 'fr') ? sched.weeklyFR : sched.weeklyEN;
-        weekly.forEach(txt => {
-          const li = document.createElement('li');
-          li.textContent = txt;
-          weeklyList.appendChild(li);
+        weekList.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s.value;
+          opt.textContent = labelForSession(s);
+          cancelClassSelect.appendChild(opt);
         });
+
+        // Instructions list
+        weeklyList.innerHTML = '';
+        if (!weekList.length) {
+          const li = document.createElement('li');
+          li.textContent = t.hintNone;
+          weeklyList.appendChild(li);
+        } else {
+          weekList.forEach(s => {
+            const li = document.createElement('li');
+            li.textContent = labelForSession(s);
+            weeklyList.appendChild(li);
+          });
+        }
       }
 
       function setLang(next) {
@@ -345,20 +428,18 @@
         form.phone.placeholder = t.inputs.phone;
 
         cancelHelper.textContent = t.cancelHelper;
-        document.querySelector('#instructionsContent h3').textContent = t.beforeYouRegister;
 
-        const instrLis = document.querySelectorAll('#instructionsContent ul:first-of-type li');
-        instrLis[0].innerHTML = `<strong>${t.arriveEarly.split(':')[0]}:</strong> ${t.arriveEarly.split(': ').slice(1).join(': ')}`;
-        instrLis[1].innerHTML = `<strong>${t.cancellation.split(':')[0]}:</strong> ${t.cancellation.split(': ').slice(1).join(': ')}`;
-        instrLis[2].innerHTML = `<strong>${t.late.split(':')[0]}:</strong> ${t.late.split(': ').slice(1).join(': ')}`;
+        document.getElementById('beforeHeader').textContent = t.beforeYouRegister;
+        const policyLis = document.querySelectorAll('#policyList li');
+        policyLis[0].innerHTML = `<strong>${t.arriveEarly.split(':')[0]}:</strong> ${t.arriveEarly.split(': ').slice(1).join(': ')}`;
+        policyLis[1].innerHTML = `<strong>${t.cancellation.split(':')[0]}:</strong> ${t.cancellation.split(': ').slice(1).join(': ')}`;
+        policyLis[2].innerHTML = `<strong>${t.late.split(':')[0]}:</strong> ${t.late.split(': ').slice(1).join(': ')}`;
 
-        document.querySelectorAll('#instructionsContent h3')[1].textContent = t.weeklySchedule;
+        document.getElementById('scheduleHeader').textContent = t.scheduleTitle;
         document.getElementById('resetText').textContent = t.reset;
 
-        // Rebuild selects and weekly schedule for the selected language & current week
-        rebuildClassSelects();
+        rebuildSelects();
 
-        // Title & submit based on mode
         if (currentMode === 'register') {
           pageTitle.textContent = t.pageTitle;
           submitBtn.textContent = t.submitRegister;
@@ -410,7 +491,6 @@
         }
       }
 
-      // Event listeners
       registerModeBtn.addEventListener('click', () => switchMode('register'));
       cancelModeBtn.addEventListener('click', () => switchMode('cancel'));
       aboutModeBtn.addEventListener('click', () => switchMode('about'));
@@ -437,7 +517,7 @@
             return;
           }
           base.classChoice = selected;
-          submitBtn.textContent = t.submitRegister.replace(/e?$/, 'ing…');
+          submitBtn.textContent = t.submitRegister + '…';
         } else if (currentMode === 'cancel') {
           if (!base.email) {
             errorMessage.textContent = t.msgEmailOnly;
@@ -456,9 +536,8 @@
           .withSuccessHandler((res) => {
             if (res && res.success) {
               let msg;
-              if (currentMode === 'register') {
-                msg = i18n[lang].successRegistered;
-              } else {
+              if (currentMode === 'register') msg = i18n[lang].successRegistered;
+              else {
                 const del = Number(res.deleted || 0);
                 const prom = Number(res.promoted || 0);
                 msg = i18n[lang].successCancelled(del, prom);
@@ -484,11 +563,25 @@
           })[fn](base);
       });
 
-      // Initialize
-      setLang(lang);               // sets language text
-      rebuildClassSelects();       // builds selects for current week & language
-      switchMode('register');      // default mode
+      function loadSchedule() {
+        scheduleHint.textContent = i18n[lang].hintLoading;
+        google.script.run
+          .withSuccessHandler((res) => {
+            schedule = Array.isArray(res) ? res : [];
+            rebuildSelects();
+          })
+          .withFailureHandler(() => {
+            schedule = [];
+            scheduleHint.textContent = (lang === 'fr') ? 'Impossible de charger l’horaire.' : 'Failed to load schedule.';
+            rebuildSelects();
+          })
+          .getSchedule();
+      }
+
+      setLang(lang);
+      switchMode('register');
       cancelClassSelect.value = '__ALL__';
+      loadSchedule();
     </script>
   </body>
 </html>

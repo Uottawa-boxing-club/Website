@@ -5,11 +5,123 @@ var SHEET_ID = '1HyoKB0AxA3plMrFhzcYze7JmhrHZEawbjvwND-vUaFM';
 var REG_TAB_CANDIDATES = ['Registrations','Sheet1','Registration','Signups'];
 // Waitlist tab name:
 var WAIT_TAB_NAME = 'Waitlist';
-// Dashboard tab name (if you kept the dashboard feature; harmless if absent)
+// Dashboard tab name
 var DASHBOARD_TAB_NAME = 'Dashboard';
 
-// Seats per class
+// Seats per class (NOW per SESSION)
 var CAPACITY_PER_CLASS = 22;
+
+// Master email log tab (unique emails for the semester)
+var MASTER_EMAIL_TAB_NAME = 'Semester Emails';
+
+/***** DATE-BASED SESSION SCHEDULE (WINTER 2026) *****
+ * IMPORTANT: each session is its own "classChoice" key,
+ * so capacity/waitlist is per exact date+time.
+ */
+var DATE_BASED_SCHEDULE = [
+  // Primary – Thursday 4–5
+  { iso: "2026-01-22", dayEN: "Thursday", dayFR: "Jeudi",    time: "4:00–5:00 PM",  typeEN: "Primary",  typeFR: "Principal" },
+  { iso: "2026-01-29", dayEN: "Thursday", dayFR: "Jeudi",    time: "4:00–5:00 PM",  typeEN: "Primary",  typeFR: "Principal" },
+  { iso: "2026-02-05", dayEN: "Thursday", dayFR: "Jeudi",    time: "4:00–5:00 PM",  typeEN: "Primary",  typeFR: "Principal" },
+  { iso: "2026-02-12", dayEN: "Thursday", dayFR: "Jeudi",    time: "4:00–5:00 PM",  typeEN: "Primary",  typeFR: "Principal" },
+  { iso: "2026-02-26", dayEN: "Thursday", dayFR: "Jeudi",    time: "4:00–5:00 PM",  typeEN: "Primary",  typeFR: "Principal" },
+  { iso: "2026-03-05", dayEN: "Thursday", dayFR: "Jeudi",    time: "4:00–5:00 PM",  typeEN: "Primary",  typeFR: "Principal" },
+  { iso: "2026-03-12", dayEN: "Thursday", dayFR: "Jeudi",    time: "4:00–5:00 PM",  typeEN: "Primary",  typeFR: "Principal" },
+  { iso: "2026-03-19", dayEN: "Thursday", dayFR: "Jeudi",    time: "4:00–5:00 PM",  typeEN: "Primary",  typeFR: "Principal" },
+  { iso: "2026-03-26", dayEN: "Thursday", dayFR: "Jeudi",    time: "4:00–5:00 PM",  typeEN: "Primary",  typeFR: "Principal" },
+  { iso: "2026-04-02", dayEN: "Thursday", dayFR: "Jeudi",    time: "4:00–5:00 PM",  typeEN: "Primary",  typeFR: "Principal" },
+  { iso: "2026-04-09", dayEN: "Thursday", dayFR: "Jeudi",    time: "4:00–5:00 PM",  typeEN: "Primary",  typeFR: "Principal" },
+
+  // Secondary – Tuesday 4–5
+  { iso: "2026-01-20", dayEN: "Tuesday",  dayFR: "Mardi",    time: "4:00–5:00 PM",  typeEN: "Secondary", typeFR: "Secondaire" },
+  { iso: "2026-02-03", dayEN: "Tuesday",  dayFR: "Mardi",    time: "4:00–5:00 PM",  typeEN: "Secondary", typeFR: "Secondaire" },
+  { iso: "2026-03-03", dayEN: "Tuesday",  dayFR: "Mardi",    time: "4:00–5:00 PM",  typeEN: "Secondary", typeFR: "Secondaire" },
+  { iso: "2026-03-17", dayEN: "Tuesday",  dayFR: "Mardi",    time: "4:00–5:00 PM",  typeEN: "Secondary", typeFR: "Secondaire" },
+  { iso: "2026-03-31", dayEN: "Tuesday",  dayFR: "Mardi",    time: "4:00–5:00 PM",  typeEN: "Secondary", typeFR: "Secondaire" },
+
+  // Secondary – Friday 12–1
+  { iso: "2026-01-30", dayEN: "Friday",   dayFR: "Vendredi", time: "12:00–1:00 PM", typeEN: "Secondary", typeFR: "Secondaire" },
+  { iso: "2026-02-13", dayEN: "Friday",   dayFR: "Vendredi", time: "12:00–1:00 PM", typeEN: "Secondary", typeFR: "Secondaire" },
+  { iso: "2026-02-27", dayEN: "Friday",   dayFR: "Vendredi", time: "12:00–1:00 PM", typeEN: "Secondary", typeFR: "Secondaire" },
+  { iso: "2026-03-13", dayEN: "Friday",   dayFR: "Vendredi", time: "12:00–1:00 PM", typeEN: "Secondary", typeFR: "Secondaire" },
+  { iso: "2026-03-27", dayEN: "Friday",   dayFR: "Vendredi", time: "12:00–1:00 PM", typeEN: "Secondary", typeFR: "Secondaire" },
+  { iso: "2026-04-10", dayEN: "Friday",   dayFR: "Vendredi", time: "12:00–1:00 PM", typeEN: "Secondary", typeFR: "Secondaire" }
+];
+
+/***** SESSION KEY + DISPLAY *****/
+function _sessionKey_(s) {
+  // Stable key used everywhere in sheets
+  return s.iso + ' | ' + s.dayEN + ' | ' + s.time;
+}
+
+// Nicely formatted (and trims spaces so it doesn't fail)
+function _displaySession_(classChoice) {
+  classChoice = _s(classChoice);
+
+  // Split and trim each piece
+  var parts = classChoice.split('|').map(function(p){ return _s(p); });
+
+  if (parts.length >= 3 && /^\d{4}-\d{2}-\d{2}$/.test(parts[0])) {
+    var iso = parts[0];
+    var day = parts[1];
+    var time = parts[2];
+    return day + ' ' + iso + ' — ' + time;
+  }
+
+  return classChoice;
+}
+
+/***** MASTER EMAIL LOG (NO DUPLICATES) *****/
+function _getMasterEmailSheet_() {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sh = ss.getSheetByName(MASTER_EMAIL_TAB_NAME);
+  if (!sh) {
+    sh = ss.insertSheet(MASTER_EMAIL_TAB_NAME);
+    sh.appendRow(['First Seen', 'Email', 'Name (latest)', 'Last Seen', 'Signup Count']);
+  } else {
+    _ensureHeaders(sh, ['First Seen', 'Email', 'Name (latest)', 'Last Seen', 'Signup Count']);
+  }
+  return sh;
+}
+
+function _recordSemesterEmail_(email, name) {
+  email = _s(email).toLowerCase();
+  name = _s(name);
+  if (!email) return;
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+
+  try {
+    var sh = _getMasterEmailSheet_();
+    var lastRow = sh.getLastRow();
+
+    if (lastRow < 2) {
+      sh.appendRow([new Date(), email, name, new Date(), 1]);
+      return;
+    }
+
+    var emails = sh.getRange(2, 2, lastRow - 1, 1).getValues(); // B2:B
+    for (var i = 0; i < emails.length; i++) {
+      var existing = _s(emails[i][0]).toLowerCase();
+      if (existing === email) {
+        var row = i + 2;
+        sh.getRange(row, 3).setValue(name || sh.getRange(row, 3).getValue()); // Name (latest)
+        sh.getRange(row, 4).setValue(new Date()); // Last Seen
+
+        var countCell = sh.getRange(row, 5);
+        var cur = Number(countCell.getValue() || 0);
+        countCell.setValue(cur + 1);
+        return;
+      }
+    }
+
+    sh.appendRow([new Date(), email, name, new Date(), 1]);
+
+  } finally {
+    lock.releaseLock();
+  }
+}
 
 /***** WEB APP *****/
 function doGet() {
@@ -26,33 +138,31 @@ function doGet() {
   }
   return html
     .setTitle('uOttawa Boxing Club')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL); // allow embedding in iframe
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
-/***** TEMPORARY SCHEDULE OVERRIDE HELPERS *****/
-// Next week only (Ottawa time): Mon Sep 29 → Mon Oct 6 (exclusive)
-// Make Tue/Wed active NOW through Oct 6 (exclusive)
-function _isOverrideWeek_(now) {
-  var today = now || new Date();
-  var start = new Date('2025-09-27T00:00:00-04:00'); // <-- moved earlier so it applies today
-  var end   = new Date('2025-10-06T00:00:00-04:00'); // Mon, Oct 6, 2025 (exclusive)
-  return today >= start && today < end;
-}
-
-
-// Returns labels & regex for grouping classes on the dashboard
-function _currentSchedule_() {
-  if (_isOverrideWeek_()) {
-    // NEXT WEEK ONLY: Tuesday + Wednesday
+/***** API: schedule for frontend *****/
+function getSchedule() {
+  return DATE_BASED_SCHEDULE.map(function(s){
     return {
-      day1: { name: 'TUESDAY',   headerReg: /tuesday/i,   sectionLabel: 'TUESDAY 4:30-5:30 PM' },
-      day2: { name: 'WEDNESDAY', headerReg: /wednesday/i, sectionLabel: 'WEDNESDAY 4:00-5:00 PM' }
+      isoDate: s.iso,
+      dayEN: s.dayEN,
+      dayFR: s.dayFR,
+      time: s.time,
+      typeEN: s.typeEN,
+      typeFR: s.typeFR,
+      value: _sessionKey_(s)
     };
-  }
-  // DEFAULT: Tuesday + Friday
+  });
+}
+
+/***** DASHBOARD GROUPING (3 streams now) *****/
+function _currentSchedule_() {
   return {
-    day1: { name: 'TUESDAY', headerReg: /tuesday/i, sectionLabel: 'TUESDAY 4:30-5:30 PM' },
-    day2: { name: 'FRIDAY',  headerReg: /friday/i,  sectionLabel: 'FRIDAY 2:30-3:30 PM' }
+    day1: { name: 'TUESDAY',   headerReg: /tuesday/i,  sectionLabel: 'TUESDAY 4:00-5:00 PM (Secondary)' },
+    day2: { name: 'THURSDAY',  headerReg: /thursday/i, sectionLabel: 'THURSDAY 4:00-5:00 PM (Primary)' },
+    day3: { name: 'FRIDAY',    headerReg: /friday/i,   sectionLabel: 'FRIDAY 12:00-1:00 PM (Secondary)' }
   };
 }
 
@@ -62,9 +172,10 @@ function registerNew(form) {
   var email = _s(form && form.email).toLowerCase();
   var phone = _s(form && form.phone);
   var classChoice = _s(form && form.classChoice);
+  var classChoiceDisplay = _displaySession_(classChoice);
 
   if (!name || !email || !phone || !classChoice) {
-    return { success: false, error: 'Please provide name, email, phone, and class day.' };
+    return { success: false, error: 'Please provide name, email, phone, and class session.' };
   }
 
   var regSheet  = _getRegistrationSheet();
@@ -78,32 +189,34 @@ function registerNew(form) {
     return { success:false, error:'Header mismatch in Registrations. Expect "Email" & "Class Choice".' };
   }
 
-  // Prevent duplicate (same email + class)
+  // Prevent duplicate (same email + session)
   for (var i = 1; i < regData.length; i++) {
     var e = _s(regData[i][cEmail]).toLowerCase();
     var c = _s(regData[i][cClass]);
     if (e === email && c === classChoice) {
-      try { _sendEmailRegistered(email, name, classChoice); } catch (e1) {}
+      try { _sendEmailRegistered(email, name, classChoiceDisplay); } catch (e1) {}
       _safeRebuildDashboard();
       return { success:true, status:'registered', message:'You are already registered for this class.' };
     }
   }
 
-  // Count active in this class
+  // Count active in this session
   var active = 0;
   for (var j = 1; j < regData.length; j++) {
     var c2 = _s(regData[j][cClass]);
     if (c2 === classChoice) active++;
   }
 
+  // Registered
   if (active < CAPACITY_PER_CLASS) {
     regSheet.appendRow([new Date(), name, email, phone, classChoice]);
-    try { _sendEmailRegistered(email, name, classChoice); } catch (e2) {}
+    _recordSemesterEmail_(email, name);
+    try { _sendEmailRegistered(email, name, classChoiceDisplay); } catch (e2) {}
     _safeRebuildDashboard();
     return { success:true, status:'registered', message:'Registered successfully.' };
   }
 
-  // Waitlist (position within this class)
+  // Waitlist position within this session
   var waitData = waitSheet.getDataRange().getValues();
   var wmap = _headerMap(waitData[0] || []);
   var wClass = _idx(wmap, ['class choice','class','classchoice']);
@@ -112,8 +225,10 @@ function registerNew(form) {
     var wc = _s(waitData[k][wClass]);
     if (wc === classChoice) position++;
   }
+
   waitSheet.appendRow([new Date(), name, email, phone, classChoice, position]);
-  try { _sendEmailWaitlisted(email, name, classChoice, position); } catch (e3) {}
+  _recordSemesterEmail_(email, name);
+  try { _sendEmailWaitlisted(email, name, classChoiceDisplay, position); } catch (e3) {}
   _safeRebuildDashboard();
   return {
     success:true, status:'waitlisted', position:position,
@@ -123,7 +238,7 @@ function registerNew(form) {
 
 function cancelRegistration(form) {
   var email = _s(form && form.email).toLowerCase();
-  var classChoice = _s(form && form.classChoice); // optional
+  var classChoice = _s(form && form.classChoice); // optional (blank = all)
 
   if (!email) return { success:false, error:'Email is required to cancel.' };
 
@@ -214,7 +329,7 @@ function _promoteFromWaitlist(classChoice) {
   waitSheet.deleteRow(rowIndex);
   _renumberWaitlist(waitSheet, classChoice);
 
-  try { _sendEmailPromoted(email, name, classChoice); } catch (e5) {}
+  try { _sendEmailPromoted(email, name, _displaySession_(classChoice)); } catch (e5) {}
   return 1;
 }
 
@@ -315,12 +430,12 @@ function _ensureHeaders(sh, headers) {
 }
 
 /***** EMAILS — bilingual (EN + FR) and 12-hour policy *****/
-function _sendEmailRegistered(email, name, classChoice) {
+function _sendEmailRegistered(email, name, classChoiceDisplay) {
   if (!email) return;
   var subject = 'uOttawa Boxing Club: Registration Confirmed | Inscription confirmée';
   var body =
     'Hi ' + (name || '') + ',\n\n' +
-    'You are registered for: ' + classChoice + '\n\n' +
+    'You are registered for: ' + classChoiceDisplay + '\n\n' +
     'Please arrive 10 minutes early to wrap up and warm up.\n' +
     'Cancellation policy: cancellations are NOT allowed within 12 hours of class time.\n' +
     'Late arrivals may lose their spot to waitlisted members.\n\n' +
@@ -329,7 +444,7 @@ function _sendEmailRegistered(email, name, classChoice) {
     '\n' +
     '— — — — — — — — — — — —\n' +
     'Bonjour ' + (name || '') + ',\n\n' +
-    'Votre inscription est confirmée pour : ' + classChoice + '\n\n' +
+    'Votre inscription est confirmée pour : ' + classChoiceDisplay + '\n\n' +
     'Veuillez arriver 10 minutes à l’avance pour vous préparer et vous échauffer.\n' +
     'Politique d’annulation : les annulations ne sont PAS permises dans les 12 heures précédant le cours.\n' +
     'Les retards peuvent entraîner la perte de votre place au profit d’une personne sur la liste d’attente.\n\n' +
@@ -338,12 +453,12 @@ function _sendEmailRegistered(email, name, classChoice) {
   MailApp.sendEmail(email, subject, body);
 }
 
-function _sendEmailWaitlisted(email, name, classChoice, position) {
+function _sendEmailWaitlisted(email, name, classChoiceDisplay, position) {
   if (!email) return;
   var subject = 'uOttawa Boxing Club: You’re on the Waitlist | Vous êtes sur la liste d’attente';
   var body =
     'Hi ' + (name || '') + ',\n\n' +
-    classChoice + ' is currently full. Your waitlist position is ' + position + '.\n' +
+    classChoiceDisplay + ' is currently full. Your waitlist position is ' + position + '.\n' +
     'We will email you automatically if a spot opens.\n' +
     'Cancellation policy (for confirmed spots): no cancellations within 12 hours of class time.\n\n' +
     'Thanks for your patience,\n' +
@@ -351,7 +466,7 @@ function _sendEmailWaitlisted(email, name, classChoice, position) {
     '\n' +
     '— — — — — — — — — — — —\n' +
     'Bonjour ' + (name || '') + ',\n\n' +
-    classChoice + ' est actuellement complet. Votre position sur la liste d’attente est ' + position + '.\n' +
+    classChoiceDisplay + ' est actuellement complet. Votre position sur la liste d’attente est ' + position + '.\n' +
     'Nous vous enverrons un courriel automatiquement si une place se libère.\n' +
     'Politique d’annulation (pour les places confirmées) : aucune annulation dans les 12 heures précédant le cours.\n\n' +
     'Merci de votre patience,\n' +
@@ -359,19 +474,19 @@ function _sendEmailWaitlisted(email, name, classChoice, position) {
   MailApp.sendEmail(email, subject, body);
 }
 
-function _sendEmailPromoted(email, name, classChoice) {
+function _sendEmailPromoted(email, name, classChoiceDisplay) {
   if (!email) return;
   var subject = 'uOttawa Boxing Club: A Spot Opened — You’re In! | Une place s’est libérée — vous êtes inscrit(e)!';
   var body =
     'Hi ' + (name || '') + ',\n\n' +
-    'Good news! A spot opened for: ' + classChoice + '\n' +
+    'Good news! A spot opened for: ' + classChoiceDisplay + '\n' +
     'You’ve been moved from the waitlist to registered.\n' +
     'Please arrive 10 minutes early. Cancellation policy: no cancellations within 12 hours of class time.\n\n' +
     'uOttawa Boxing Club Team\n' +
     '\n' +
     '— — — — — — — — — — — —\n' +
     'Bonjour ' + (name || '') + ',\n\n' +
-    'Bonne nouvelle! Une place s’est libérée pour : ' + classChoice + '\n' +
+    'Bonne nouvelle! Une place s’est libérée pour : ' + classChoiceDisplay + '\n' +
     'Vous avez été déplacé(e) de la liste d’attente vers la liste des personnes inscrites.\n' +
     'Veuillez arriver 10 minutes à l’avance. Politique d’annulation : aucune annulation dans les 12 heures précédant le cours.\n\n' +
     'Équipe du Club de boxe de l’uOttawa';
@@ -380,11 +495,12 @@ function _sendEmailPromoted(email, name, classChoice) {
 
 function _sendEmailCancelled(email, classChoice, count) {
   if (!email) return;
+  var display = classChoice ? _displaySession_(classChoice) : '';
   var subject = 'uOttawa Boxing Club: Cancellation Received | Annulation reçue';
   var body =
     'Hi,\n\n' +
     'We cancelled ' + count + ' registration' + (count === 1 ? '' : 's') +
-    (classChoice ? ' for ' + classChoice : '') + '.\n' +
+    (display ? ' for ' + display : '') + '.\n' +
     'Reminder: cancellations are not permitted within 12 hours of class time.\n\n' +
     'If this wasn’t you, please reply to let us know.\n\n' +
     'uOttawa Boxing Club Team\n' +
@@ -392,7 +508,7 @@ function _sendEmailCancelled(email, classChoice, count) {
     '— — — — — — — — — — — —\n' +
     'Bonjour,\n\n' +
     'Nous avons annulé ' + count + ' inscription' + (count === 1 ? '' : 's') +
-    (classChoice ? ' pour ' + classChoice : '') + '.\n' +
+    (display ? ' pour ' + display : '') + '.\n' +
     'Rappel : les annulations ne sont pas permises dans les 12 heures précédant le cours.\n\n' +
     'Si ce n’était pas vous, veuillez répondre à ce courriel pour nous en informer.\n\n' +
     'Équipe du Club de boxe de l’uOttawa';
@@ -434,186 +550,9 @@ function pingSetup() {
     waitRows: wait.getLastRow()
   };
 }
+
 function testEmailOnce() {
   var me = Session.getActiveUser().getEmail() || 'your-email@example.com';
   MailApp.sendEmail(me, 'uOttawa Boxing Club — Test | Essai', 'If you see this, email sending is authorized.\n\nSi vous voyez ceci, l’envoi de courriels est autorisé.');
   return 'Sent test to: ' + me;
-}
-/***** MANUAL RESET FUNCTION *****/
-function clearAllRegistrations() {
-  var regSheet = _getRegistrationSheet();
-  var waitSheet = _getWaitlistSheet();
-  
-  // Clear all data except headers
-  if (regSheet.getLastRow() > 1) {
-    regSheet.deleteRows(2, regSheet.getLastRow() - 1);
-  }
-  if (waitSheet.getLastRow() > 1) {
-    waitSheet.deleteRows(2, waitSheet.getLastRow() - 1);
-  }
-  
-  // Clear dashboard sheet if it exists
-  var ss = SpreadsheetApp.openById(SHEET_ID);
-  var dashSheet = ss.getSheetByName(DASHBOARD_TAB_NAME);
-  if (dashSheet) {
-    dashSheet.clear();
-  }
-  _safeRebuildDashboard();
-  return 'Reset complete. All registrations and dashboard cleared.';
-}
-
-/*** DASHBOARD (DYNAMIC SCHEDULE) ***/
-function setupDashboardHeaders() {
-  var ss = SpreadsheetApp.openById(SHEET_ID);
-  var dashSheet = ss.getSheetByName(DASHBOARD_TAB_NAME);
-  if (!dashSheet) dashSheet = ss.insertSheet(DASHBOARD_TAB_NAME);
-  dashSheet.clear();
-  dashSheet.appendRow(['uOttawa Boxing Club - Registration Dashboard']);
-  dashSheet.appendRow(['Last Updated: ' + new Date().toString()]);
-  dashSheet.appendRow(['']);
-  dashSheet.getRange(1, 1).setFontWeight('bold').setFontSize(16);
-  dashSheet.autoResizeColumns(1, 5);
-  return 'Clean dashboard created successfully';
-}
-
-function _rebuildDashboard() {
-  try {
-    var ss = SpreadsheetApp.openById(SHEET_ID);
-    var dashSheet = ss.getSheetByName(DASHBOARD_TAB_NAME);
-    if (!dashSheet || dashSheet.getLastRow() < 3) {
-      setupDashboardHeaders();
-      dashSheet = ss.getSheetByName(DASHBOARD_TAB_NAME);
-    }
-
-    dashSheet.getRange(2, 1).setValue('Last Updated: ' + new Date().toString());
-
-    var lastRow = dashSheet.getLastRow();
-    if (lastRow > 3) dashSheet.deleteRows(4, lastRow - 3);
-
-    // Current schedule (override next week only)
-    var sched = _currentSchedule_();
-
-    var regSheet = _getRegistrationSheet();
-    var waitSheet = _getWaitlistSheet();
-    var regData = regSheet.getDataRange().getValues();
-    var waitData = waitSheet.getDataRange().getValues();
-
-    var d1Regs = [], d2Regs = [];
-    var d1Wait = [], d2Wait = [];
-
-    if (regData.length > 1) {
-      var rmap  = _headerMap(regData[0] || []);
-      var cName = _idx(rmap, ['name']);
-      var cEmail= _idx(rmap, ['email','e-mail']);
-      var cPhone= _idx(rmap, ['phone']);
-      var cClass= _idx(rmap, ['class choice','class','classchoice']);
-      var cTime = _idx(rmap, ['timestamp']);
-
-      for (var i = 1; i < regData.length; i++) {
-        var raw = _s(regData[i][cClass]);
-        var info = [regData[i][cName]||'', regData[i][cEmail]||'', regData[i][cPhone]||'', regData[i][cTime]||''];
-        if (sched.day1.headerReg.test(raw)) d1Regs.push(info);
-        else if (sched.day2.headerReg.test(raw)) d2Regs.push(info);
-      }
-    }
-
-    if (waitData.length > 1) {
-      var wmap  = _headerMap(waitData[0] || []);
-      var wName = _idx(wmap, ['name']);
-      var wEmail= _idx(wmap, ['email','e-mail']);
-      var wPhone= _idx(wmap, ['phone']);
-      var wClass= _idx(wmap, ['class choice','class','classchoice']);
-      var wPos  = _idx(wmap, ['position']);
-      var wTime = _idx(wmap, ['timestamp']);
-
-      for (var j = 1; j < waitData.length; j++) {
-        var raw = _s(waitData[j][wClass]);
-        var winfo = [waitData[j][wPos]||'', waitData[j][wName]||'', waitData[j][wEmail]||'', waitData[j][wPhone]||'', waitData[j][wTime]||''];
-        if (sched.day1.headerReg.test(raw)) d1Wait.push(winfo);
-        else if (sched.day2.headerReg.test(raw)) d2Wait.push(winfo);
-      }
-    }
-
-    var all = [];
-
-    // DAY 1
-    all.push([sched.day1.sectionLabel + ' REGISTRATIONS (' + d1Regs.length + '/' + CAPACITY_PER_CLASS + ')']);
-    all.push(['Name','Email','Phone','Registration Time']);
-    if (d1Regs.length) d1Regs.forEach(function(r){ all.push(r); }); else all.push(['No registrations yet']);
-
-    all.push(['']);
-    all.push([sched.day1.sectionLabel + ' WAITLIST (' + d1Wait.length + ')']);
-    all.push(['Position','Name','Email','Phone','Waitlist Time']);
-    if (d1Wait.length) d1Wait.forEach(function(r){ all.push(r); }); else all.push(['No waitlist']);
-
-    // DAY 2
-    all.push(['']);
-    all.push([sched.day2.sectionLabel + ' REGISTRATIONS (' + d2Regs.length + '/' + CAPACITY_PER_CLASS + ')']);
-    all.push(['Name','Email','Phone','Registration Time']);
-    if (d2Regs.length) d2Regs.forEach(function(r){ all.push(r); }); else all.push(['No registrations yet']);
-
-    all.push(['']);
-    all.push([sched.day2.sectionLabel + ' WAITLIST (' + d2Wait.length + ')']);
-    all.push(['Position','Name','Email','Phone','Waitlist Time']);
-    if (d2Wait.length) d2Wait.forEach(function(r){ all.push(r); }); else all.push(['No waitlist']);
-
-    // pad to 5 columns
-    for (var a = 0; a < all.length; a++) while (all[a].length < 5) all[a].push('');
-
-    dashSheet.getRange(4, 1, all.length, 5).setValues(all);
-
-    // Format headers
-    var startRow = 4;
-    for (var idx = 0; idx < all.length; idx++) {
-      var v = (all[idx][0] || '').toString();
-      var row = startRow + idx;
-      if (v.indexOf('REGISTRATIONS (') > -1 && v.indexOf(sched.day1.name) === 0) {
-        dashSheet.getRange(row, 1, 1, 5).setFontWeight('bold').setFontSize(12).setBackground('#e3f2fd');
-      } else if (v.indexOf('WAITLIST (') > -1 && v.indexOf(sched.day1.name) === 0) {
-        dashSheet.getRange(row, 1, 1, 5).setFontWeight('bold').setFontSize(12).setBackground('#fff3e0');
-      } else if (v.indexOf('REGISTRATIONS (') > -1 && v.indexOf(sched.day2.name) === 0) {
-        dashSheet.getRange(row, 1, 1, 5).setFontWeight('bold').setFontSize(12).setBackground('#e8f5e8');
-      } else if (v.indexOf('WAITLIST (') > -1 && v.indexOf(sched.day2.name) === 0) {
-        dashSheet.getRange(row, 1, 1, 5).setFontWeight('bold').setFontSize(12).setBackground('#fce4ec');
-      } else if (v === 'Name' || v === 'Position') {
-        dashSheet.getRange(row, 1, 1, 5).setFontWeight('bold').setBackground('#f5f5f5');
-      }
-    }
-
-    dashSheet.autoResizeColumns(1, 5);
-
-  } catch (error) {
-    Logger.log('Dashboard rebuild failed: ' + error.toString());
-    try { setupDashboardHeaders(); } catch (e2) {}
-  }
-}
-
-/*** DASHBOARD AUTO-UPDATE TRIGGER SETUP ***/
-function setupDashboardTrigger() {
-  var triggers = ScriptApp.getProjectTriggers();
-  for (var i = 0; i < triggers.length; i++) {
-    if (triggers[i].getHandlerFunction() === '_rebuildDashboard') {
-      ScriptApp.deleteTrigger(triggers[i]);
-    }
-  }
-  ScriptApp.newTrigger('_rebuildDashboard').timeBased().everyMinutes(10).create();
-  return 'Dashboard auto-update trigger installed (every 10 minutes)';
-}
-
-/*** WEEKLY RESET TRIGGER SETUP ***/
-function setupWeeklyResetTrigger() {
-  var triggers = ScriptApp.getProjectTriggers();
-  for (var i = 0; i < triggers.length; i++) {
-    if (triggers[i].getHandlerFunction() === 'clearAllRegistrations') {
-      ScriptApp.deleteTrigger(triggers[i]);
-    }
-  }
-  ScriptApp.newTrigger('clearAllRegistrations')
-    .timeBased()
-    .onWeekDay(ScriptApp.WeekDay.SATURDAY)
-    .atHour(11)
-    .nearMinute(30)
-    .inTimezone('America/Toronto')
-    .create();
-  return 'Weekly reset trigger installed for Saturday at 11:30 AM Ottawa time';
 }
